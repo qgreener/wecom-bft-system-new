@@ -16,6 +16,18 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.application.fulfillment.command.LogisticsTraceCommand;
+import com.wecombft.application.fulfillment.command.ShipCommand;
+import com.wecombft.application.fulfillment.command.SignCommand;
+import com.wecombft.application.fulfillment.response.DocumentLinkResponse;
+import com.wecombft.application.fulfillment.response.LogisticsCallbackResponse;
+import com.wecombft.application.fulfillment.response.LogisticsTraceResponse;
+import com.wecombft.application.fulfillment.response.ShipmentActionResponse;
+import com.wecombft.application.fulfillment.response.ShipmentDetailResponse;
+import com.wecombft.application.fulfillment.response.ShipmentItemResponse;
+import com.wecombft.application.fulfillment.response.ShipmentListItem;
+import com.wecombft.application.fulfillment.response.ShipmentPage;
+import com.wecombft.application.fulfillment.response.StockFlowResponse;
 import com.wecombft.domain.model.fulfillment.ShipmentStateSnapshot;
 import com.wecombft.domain.service.fulfillment.FulfillmentStateDomainService;
 import com.wecombft.domain.service.fulfillment.FulfillmentStateException;
@@ -845,111 +857,6 @@ public class FulfillmentApplicationService {
 
     private String jsonSafe(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    public record ShipCommand(String logisticsCompanyCode, String logisticsCompanyName, String trackingNo, String waybillFile, String remark, String mockScenario) {
-    }
-
-    public record SignCommand(LocalDateTime signedAt, String remark) {
-    }
-
-    public record LogisticsTraceCommand(
-        String eventNo,
-        String shipmentNo,
-        String trackingNo,
-        LocalDateTime logisticsNodeTime,
-        String nodeStatus,
-        String nodeDesc,
-        Boolean signedFlag,
-        Map<String, Object> rawSnapshot
-    ) {
-    }
-
-    public record StockFlowResponse(
-        long flowId,
-        String flowNo,
-        long skuId,
-        String bizType,
-        long bizId,
-        String bizNo,
-        Long orderId,
-        Long shipmentId,
-        Long purchaseId,
-        String direction,
-        int quantity,
-        int beforeStock,
-        int afterStock,
-        Long operatorUserId,
-        LocalDateTime occurredAt,
-        String idempotencyKey,
-        String remark
-    ) {
-    }
-
-    public record ShipmentPage(List<ShipmentListItem> records, int pageNo, int pageSize, long total) {
-    }
-
-    public record ShipmentListItem(
-        long shipmentId,
-        String shipmentNo,
-        long orderId,
-        String orderNo,
-        long studentId,
-        String status,
-        String logisticsCompanyName,
-        String trackingNo,
-        LocalDateTime shippedAt,
-        LocalDateTime signedAt,
-        boolean exceptionFlag,
-        String exceptionReason
-    ) {
-    }
-
-    public record ShipmentActionResponse(
-        long shipmentId,
-        String shipmentNo,
-        long orderId,
-        String status,
-        String logisticsCompanyName,
-        String trackingNo,
-        LocalDateTime shippedAt,
-        LocalDateTime signedAt,
-        List<Long> stockFlowIds,
-        boolean exceptionFlag,
-        String exceptionReason
-    ) {
-    }
-
-    public record ShipmentDetailResponse(
-        ShipmentActionResponse shipment,
-        List<ShipmentItemResponse> items,
-        List<LogisticsTraceResponse> traces,
-        List<StockFlowResponse> stockFlows,
-        List<DocumentLinkResponse> documentLinks
-    ) {
-    }
-
-    public record ShipmentItemResponse(long itemId, long skuId, String skuNo, String skuName, String lineType, int quantity, Long stockFlowId) {
-    }
-
-    public record LogisticsTraceResponse(long traceId, long shipmentId, long orderId, String trackingNo, LocalDateTime logisticsNodeTime, String nodeStatus, String nodeDesc) {
-    }
-
-    public record LogisticsCallbackResponse(String processingStatus, Long shipmentId, Long orderId, String trackingNo, String status, String failureReason) {
-    }
-
-    public record DocumentLinkResponse(
-        long documentLinkId,
-        String documentType,
-        long documentId,
-        String documentNo,
-        String documentStatus,
-        Long amountCent,
-        String relationType,
-        LocalDateTime occurredAt,
-        String sourceTable,
-        String remark
-    ) {
     }
 
     private record SkuStock(long skuId, String skuNo, String skuName, String status, int currentStock, int availableStock) {

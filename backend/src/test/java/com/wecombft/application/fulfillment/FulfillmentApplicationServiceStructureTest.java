@@ -33,4 +33,23 @@ class FulfillmentApplicationServiceStructureTest {
                 "fromJson",
                 "sha256Hex");
     }
+
+    @Test
+    void should_not_embed_fulfillment_command_or_response_payloads() {
+        assertThat(Arrays.stream(FulfillmentApplicationService.class.getDeclaredClasses())
+            .map(Class::getSimpleName))
+            .doesNotContain(
+                "ShipCommand",
+                "SignCommand",
+                "LogisticsTraceCommand",
+                "ShipmentPage",
+                "ShipmentListItem",
+                "ShipmentActionResponse",
+                "ShipmentDetailResponse",
+                "ShipmentItemResponse",
+                "LogisticsTraceResponse",
+                "LogisticsCallbackResponse",
+                "StockFlowResponse",
+                "DocumentLinkResponse");
+    }
 }

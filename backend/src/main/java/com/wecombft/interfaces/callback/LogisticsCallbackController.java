@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.fulfillment.FulfillmentApplicationService;
-import com.wecombft.application.fulfillment.FulfillmentApplicationService.LogisticsCallbackResponse;
-import com.wecombft.application.fulfillment.FulfillmentApplicationService.LogisticsTraceCommand;
+import com.wecombft.application.fulfillment.command.LogisticsTraceCommand;
+import com.wecombft.application.fulfillment.response.LogisticsCallbackResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
