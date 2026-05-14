@@ -225,6 +225,12 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void should_apply_s6_purchase_idempotency_migration() {
+        assertThat(existingColumns("purchase_order")).contains("idempotency_key");
+        assertThat(existingIndexes("purchase_order")).contains("uk_purchase_idempotency_key");
+    }
+
+    @Test
     void should_not_add_soft_delete_columns_to_immutable_documents_logs_or_callbacks() {
         List<String> immutableTables = List.of(
                 "trade_order",

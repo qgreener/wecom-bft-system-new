@@ -97,7 +97,12 @@ public class PermissionCatalog {
                 "crm:lead:write",
                 "student:read",
                 "learning:entitlement:read",
-                "trade:order:read"
+                "trade:order:read",
+                "inventory:sku:write",
+                "purchase:order:write",
+                "purchase:approval:approve",
+                "fulfillment:shipment:write",
+                "system:logistics-config:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
@@ -105,6 +110,9 @@ public class PermissionCatalog {
                 new MenuPolicy("crm.students", "学员管理", "crm", 110),
                 new MenuPolicy("course.manage", "课程管理", "course", 120),
                 new MenuPolicy("course.lesson-content", "课节内容", "course", 130),
+                new MenuPolicy("inventory.skus", "库存管理", "supply", 200),
+                new MenuPolicy("purchase.orders", "采购订单", "supply", 210),
+                new MenuPolicy("fulfillment.shipments", "发货管理", "supply", 220),
                 new MenuPolicy("trade.orders", "订单管理", "trade", 300),
                 new MenuPolicy("system.settings", "系统设置", "system", 900),
                 new MenuPolicy("system.audit-logs", "操作日志", "system", 910)
