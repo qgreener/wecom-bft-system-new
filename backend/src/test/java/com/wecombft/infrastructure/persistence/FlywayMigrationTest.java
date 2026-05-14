@@ -214,6 +214,17 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void should_apply_s5_order_payment_chain_migration() {
+        assertThat(existingColumns("trade_order")).contains(
+                "client_request_no",
+                "idempotency_key",
+                "confirm_token");
+        assertThat(existingIndexes("trade_order")).contains(
+                "uk_trade_order_student_idempotency",
+                "idx_trade_order_student_request");
+    }
+
+    @Test
     void should_not_add_soft_delete_columns_to_immutable_documents_logs_or_callbacks() {
         List<String> immutableTables = List.of(
                 "trade_order",

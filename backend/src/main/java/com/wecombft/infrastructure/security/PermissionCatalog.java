@@ -96,7 +96,8 @@ public class PermissionCatalog {
                 "crm:lead:read",
                 "crm:lead:write",
                 "student:read",
-                "learning:entitlement:read"
+                "learning:entitlement:read",
+                "trade:order:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
@@ -104,6 +105,7 @@ public class PermissionCatalog {
                 new MenuPolicy("crm.students", "学员管理", "crm", 110),
                 new MenuPolicy("course.manage", "课程管理", "course", 120),
                 new MenuPolicy("course.lesson-content", "课节内容", "course", 130),
+                new MenuPolicy("trade.orders", "订单管理", "trade", 300),
                 new MenuPolicy("system.settings", "系统设置", "system", 900),
                 new MenuPolicy("system.audit-logs", "操作日志", "system", 910)
             ),
@@ -128,6 +130,7 @@ public class PermissionCatalog {
                 new MenuPolicy("home.dashboard", "首页", null, 10),
                 new MenuPolicy("crm.leads", "线索管理", "crm", 100),
                 new MenuPolicy("crm.students", "学员管理", "crm", 110),
+                new MenuPolicy("trade.orders", "订单管理", "trade", 300),
                 new MenuPolicy("report.business", "业务报表", "report", 700)
             ),
             List.of(
@@ -147,12 +150,14 @@ public class PermissionCatalog {
                 "course:approval:submit",
                 "learning:entitlement:read",
                 "student:read",
+                "trade:order:read",
                 "report:learning:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
                 new MenuPolicy("course.manage", "课程管理", "course", 120),
                 new MenuPolicy("course.lesson-content", "课节内容", "course", 130),
+                new MenuPolicy("trade.orders", "订单管理", "trade", 300),
                 new MenuPolicy("report.learning", "学习报表", "report", 710)
             ),
             List.of(
@@ -211,13 +216,15 @@ public class PermissionCatalog {
                 "inventory:sku:write",
                 "purchase:order:write",
                 "fulfillment:shipment:write",
+                "trade:order:read",
                 "system:logistics-config:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
                 new MenuPolicy("inventory.skus", "库存管理", "supply", 200),
                 new MenuPolicy("purchase.orders", "采购订单", "supply", 210),
-                new MenuPolicy("fulfillment.shipments", "发货管理", "supply", 220)
+                new MenuPolicy("fulfillment.shipments", "发货管理", "supply", 220),
+                new MenuPolicy("trade.orders", "订单管理", "trade", 300)
             ),
             List.of(
                 new FieldMaskPolicy("receiver_mobile", "收货手机号", "SHIPPING_ONLY_FULL"),
@@ -233,10 +240,12 @@ public class PermissionCatalog {
                 "tax:invoice:write",
                 "finance:reconciliation:write",
                 "accounting:material:write",
+                "trade:order:read",
                 "system:tax-config:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
+                new MenuPolicy("trade.orders", "订单管理", "trade", 300),
                 new MenuPolicy("invoice.manage", "开票管理", "finance", 400),
                 new MenuPolicy("finance.reconciliation", "收款对账", "finance", 410),
                 new MenuPolicy("accounting.workspace", "代账管理", "finance", 420)

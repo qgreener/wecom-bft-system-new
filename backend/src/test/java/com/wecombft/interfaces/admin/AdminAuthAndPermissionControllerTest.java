@@ -76,6 +76,23 @@ class AdminAuthAndPermissionControllerTest {
                 "FINANCE_ONLY_FULL");
     }
 
+    @Test
+    void should_expose_order_menu_for_order_read_roles() throws Exception {
+        assertOrderMenu("DEMO_OPS");
+        assertOrderMenu("DEMO_EDU_ADMIN");
+        assertOrderMenu("DEMO_SERVICE");
+        assertOrderMenu("DEMO_WAREHOUSE");
+        assertOrderMenu("DEMO_ACCOUNTING");
+    }
+
+    private void assertOrderMenu(String userNo) throws Exception {
+        String token = loginAs(userNo);
+        mockMvc.perform(get("/api/admin/auth/me").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.permission_codes", hasItem("trade:order:read")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("trade.orders")));
+    }
+
     private void assertRoleView(
         String userNo,
         String roleCode,
