@@ -20,7 +20,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.application.command.inventory.SkuCommand;
+import com.wecombft.application.command.inventory.StockFlowCommand;
 import com.wecombft.infrastructure.security.AdminPrincipal;
+import com.wecombft.interfaces.dto.inventory.SkuPage;
+import com.wecombft.interfaces.dto.inventory.SkuResponse;
+import com.wecombft.interfaces.dto.inventory.StockFlowPage;
+import com.wecombft.interfaces.dto.inventory.StockFlowResponse;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
@@ -679,81 +685,6 @@ public class InventoryApplicationService {
     }
 
     public record CreationResult<T>(T response, boolean created) {
-    }
-
-    public record SkuCommand(
-        Long skuId,
-        String skuName,
-        String categoryCode,
-        String skuType,
-        String unit,
-        Map<String, Object> specAttrs,
-        Long defaultSupplierId,
-        Long costPriceCent,
-        Integer safetyStock,
-        String status,
-        String imageUrl
-    ) {
-    }
-
-    public record SkuPage(List<SkuResponse> records, int pageNo, int pageSize, long total) {
-    }
-
-    public record SkuResponse(
-        long skuId,
-        String skuNo,
-        String skuName,
-        String categoryCode,
-        String skuType,
-        String unit,
-        Map<String, Object> specAttrs,
-        Long defaultSupplierId,
-        Long costPriceCent,
-        int currentStock,
-        int lockedStock,
-        int availableStock,
-        int safetyStock,
-        String status,
-        String imageUrl
-    ) {
-    }
-
-    public record StockFlowCommand(
-        Long skuId,
-        String direction,
-        Integer quantity,
-        String bizType,
-        Long bizId,
-        String bizNo,
-        Long orderId,
-        Long shipmentId,
-        Long purchaseId,
-        String remark
-    ) {
-    }
-
-    public record StockFlowPage(List<StockFlowResponse> records, int pageNo, int pageSize, long total) {
-    }
-
-    public record StockFlowResponse(
-        long flowId,
-        String flowNo,
-        long skuId,
-        String bizType,
-        long bizId,
-        String bizNo,
-        Long orderId,
-        Long shipmentId,
-        Long purchaseId,
-        String direction,
-        int quantity,
-        int beforeStock,
-        int afterStock,
-        Long operatorUserId,
-        LocalDateTime occurredAt,
-        String idempotencyKey,
-        String remark
-    ) {
     }
 
     private record SkuRow(

@@ -14,14 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.inventory.InventoryApplicationService;
 import com.wecombft.application.inventory.InventoryApplicationService.CreationResult;
-import com.wecombft.application.inventory.InventoryApplicationService.SkuCommand;
-import com.wecombft.application.inventory.InventoryApplicationService.SkuPage;
-import com.wecombft.application.inventory.InventoryApplicationService.SkuResponse;
-import com.wecombft.application.inventory.InventoryApplicationService.StockFlowCommand;
-import com.wecombft.application.inventory.InventoryApplicationService.StockFlowPage;
-import com.wecombft.application.inventory.InventoryApplicationService.StockFlowResponse;
+import com.wecombft.application.command.inventory.SkuCommand;
+import com.wecombft.application.command.inventory.StockFlowCommand;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
+import com.wecombft.interfaces.dto.inventory.SkuPage;
+import com.wecombft.interfaces.dto.inventory.SkuResponse;
+import com.wecombft.interfaces.dto.inventory.StockFlowPage;
+import com.wecombft.interfaces.dto.inventory.StockFlowResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
