@@ -1,10 +1,7 @@
 package com.wecombft.application.fulfillment;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.domain.model.fulfillment.ShipmentStateSnapshot;
@@ -37,9 +32,6 @@ import com.wecombft.shared.web.ApiException;
 
 @Service
 public class FulfillmentApplicationService {
-
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
-    };
 
     private final JdbcTemplate jdbcTemplate;
     private final IdGenerator idGenerator;
@@ -563,64 +555,6 @@ public class FulfillmentApplicationService {
         }
     }
 
-    private Optional<SkuRow> findSku(long skuId) {
-        return jdbcTemplate.query(
-            """
-            select id, sku_no, sku_name, category_code, sku_type, unit, spec_attrs, default_supplier_id,
-                   cost_price_cent, current_stock, locked_stock, available_stock, safety_stock, status, image_url
-            from inventory_sku
-            where id = ? and deleted_flag = 0
-            """,
-            (rs, rowNum) -> new SkuRow(
-                rs.getLong("id"),
-                rs.getString("sku_no"),
-                rs.getString("sku_name"),
-                rs.getString("category_code"),
-                rs.getString("sku_type"),
-                rs.getString("unit"),
-                rs.getString("spec_attrs"),
-                nullableLong(rs, "default_supplier_id"),
-                nullableLong(rs, "cost_price_cent"),
-                rs.getInt("current_stock"),
-                rs.getInt("locked_stock"),
-                rs.getInt("available_stock"),
-                rs.getInt("safety_stock"),
-                rs.getString("status"),
-                rs.getString("image_url")),
-            skuId)
-            .stream()
-            .findFirst();
-    }
-
-    private Optional<SkuRow> findSkuByIdempotencyKey(String idempotencyKey) {
-        return jdbcTemplate.query(
-            """
-            select id, sku_no, sku_name, category_code, sku_type, unit, spec_attrs, default_supplier_id,
-                   cost_price_cent, current_stock, locked_stock, available_stock, safety_stock, status, image_url
-            from inventory_sku
-            where idempotency_key = ? and deleted_flag = 0
-            """,
-            (rs, rowNum) -> new SkuRow(
-                rs.getLong("id"),
-                rs.getString("sku_no"),
-                rs.getString("sku_name"),
-                rs.getString("category_code"),
-                rs.getString("sku_type"),
-                rs.getString("unit"),
-                rs.getString("spec_attrs"),
-                nullableLong(rs, "default_supplier_id"),
-                nullableLong(rs, "cost_price_cent"),
-                rs.getInt("current_stock"),
-                rs.getInt("locked_stock"),
-                rs.getInt("available_stock"),
-                rs.getInt("safety_stock"),
-                rs.getString("status"),
-                rs.getString("image_url")),
-            idempotencyKey)
-            .stream()
-            .findFirst();
-    }
-
     private SkuStock requireSkuStock(long skuId) {
         return jdbcTemplate.query(
             """
@@ -660,16 +594,6 @@ public class FulfillmentApplicationService {
             .stream()
             .findFirst()
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "SKU 不存在"));
-    }
-
-    private void requireActiveSupplier(long supplierId) {
-        Integer count = jdbcTemplate.queryForObject(
-            "select count(*) from supplier where id = ? and status = 'ACTIVE' and access_status = 'ENABLED' and deleted_flag = 0",
-            Integer.class,
-            supplierId);
-        if (count == null || count == 0) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "供货商不可用");
-        }
     }
 
     private Optional<StockFlowRow> findStockFlowByIdempotency(String idempotencyKey) {
@@ -870,13 +794,6 @@ public class FulfillmentApplicationService {
             record.remark());
     }
 
-    private void appendLongFilter(StringBuilder sql, List<Object> args, String columnName, Long value) {
-        if (value != null) {
-            sql.append(" and ").append(columnName).append(" = ?");
-            args.add(value);
-        }
-    }
-
     private long countRows(String sql, List<Object> args) {
         Long total = jdbcTemplate.queryForObject(sql, Long.class, args.toArray());
         return total == null ? 0 : total;
@@ -898,44 +815,6 @@ public class FulfillmentApplicationService {
         return value.trim();
     }
 
-    private long positive(Long value, String message) {
-        if (value == null || value <= 0) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
-        }
-        return value;
-    }
-
-    private int positiveInt(Integer value, String message) {
-        if (value == null || value <= 0) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
-        }
-        return value;
-    }
-
-    private int nonNegative(Integer value, String message) {
-        if (value == null) {
-            return 0;
-        }
-        if (value < 0) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
-        }
-        return value;
-    }
-
-    private long nonNegative(Long value, String message) {
-        if (value == null) {
-            return 0;
-        }
-        if (value < 0) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
-        }
-        return value;
-    }
-
-    private long nullToZero(Long value) {
-        return value == null ? 0 : value;
-    }
-
     private String requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
@@ -943,20 +822,8 @@ public class FulfillmentApplicationService {
         return value.trim();
     }
 
-    private String normalizeChoice(String value, List<String> allowed, String message) {
-        String normalized = normalizeText(value);
-        if (!allowed.contains(normalized)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", message);
-        }
-        return normalized;
-    }
-
     private String normalizeText(String value) {
         return requireText(value, "参数不能为空").toUpperCase();
-    }
-
-    private String defaultString(String value, String defaultValue) {
-        return value == null || value.isBlank() ? defaultValue : value.trim();
     }
 
     private String blankToNull(String value) {
@@ -971,30 +838,6 @@ public class FulfillmentApplicationService {
         }
     }
 
-    private Map<String, Object> fromJson(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            JsonNode node = objectMapper.readTree(json);
-            if (node.isTextual()) {
-                return fromJson(node.asText());
-            }
-            return objectMapper.convertValue(node, MAP_TYPE);
-        } catch (JsonProcessingException exception) {
-            return Map.of("raw", json);
-        }
-    }
-
-    private String sha256Hex(String source) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(source.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 not available", exception);
-        }
-    }
-
     private Long nullableLong(java.sql.ResultSet rs, String columnName) throws java.sql.SQLException {
         long value = rs.getLong(columnName);
         return rs.wasNull() ? null : value;
@@ -1002,38 +845,6 @@ public class FulfillmentApplicationService {
 
     private String jsonSafe(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
-    public record CreationResult<T>(T response, boolean created) {
-    }
-
-    public record SkuCommand(
-        Long skuId,
-        String skuName,
-        String categoryCode,
-        String skuType,
-        String unit,
-        Map<String, Object> specAttrs,
-        Long defaultSupplierId,
-        Long costPriceCent,
-        Integer safetyStock,
-        String status,
-        String imageUrl
-    ) {
-    }
-
-    public record StockFlowCommand(
-        Long skuId,
-        String direction,
-        Integer quantity,
-        String bizType,
-        Long bizId,
-        String bizNo,
-        Long orderId,
-        Long shipmentId,
-        Long purchaseId,
-        String remark
-    ) {
     }
 
     public record ShipCommand(String logisticsCompanyCode, String logisticsCompanyName, String trackingNo, String waybillFile, String remark, String mockScenario) {
@@ -1052,31 +863,6 @@ public class FulfillmentApplicationService {
         Boolean signedFlag,
         Map<String, Object> rawSnapshot
     ) {
-    }
-
-    public record SkuPage(List<SkuResponse> records, int pageNo, int pageSize, long total) {
-    }
-
-    public record SkuResponse(
-        long skuId,
-        String skuNo,
-        String skuName,
-        String categoryCode,
-        String skuType,
-        String unit,
-        Map<String, Object> specAttrs,
-        Long defaultSupplierId,
-        Long costPriceCent,
-        int currentStock,
-        int lockedStock,
-        int availableStock,
-        int safetyStock,
-        String status,
-        String imageUrl
-    ) {
-    }
-
-    public record StockFlowPage(List<StockFlowResponse> records, int pageNo, int pageSize, long total) {
     }
 
     public record StockFlowResponse(
@@ -1164,44 +950,6 @@ public class FulfillmentApplicationService {
         String sourceTable,
         String remark
     ) {
-    }
-
-    private record SkuRow(
-        long skuId,
-        String skuNo,
-        String skuName,
-        String categoryCode,
-        String skuType,
-        String unit,
-        String specAttrs,
-        Long defaultSupplierId,
-        Long costPriceCent,
-        int currentStock,
-        int lockedStock,
-        int availableStock,
-        int safetyStock,
-        String status,
-        String imageUrl
-    ) {
-        SkuResponse toResponse() {
-            return new SkuResponse(skuId, skuNo, skuName, categoryCode, skuType, unit, fromSpecAttrs(specAttrs), defaultSupplierId, costPriceCent, currentStock, lockedStock, availableStock, safetyStock, status, imageUrl);
-        }
-
-        private Map<String, Object> fromSpecAttrs(String json) {
-            if (json == null || json.isBlank()) {
-                return Map.of();
-            }
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode node = mapper.readTree(json);
-                if (node.isTextual()) {
-                    return fromSpecAttrs(node.asText());
-                }
-                return mapper.convertValue(node, MAP_TYPE);
-            } catch (JsonProcessingException exception) {
-                return Map.of("raw", json);
-            }
-        }
     }
 
     private record SkuStock(long skuId, String skuNo, String skuName, String status, int currentStock, int availableStock) {
