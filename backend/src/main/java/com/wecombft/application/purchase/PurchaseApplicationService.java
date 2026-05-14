@@ -14,10 +14,25 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.application.command.purchase.ApprovalActionCommand;
+import com.wecombft.application.command.purchase.PurchaseCreateCommand;
+import com.wecombft.application.command.purchase.PurchaseInputInvoiceCommand;
+import com.wecombft.application.command.purchase.PurchaseItemCommand;
+import com.wecombft.application.command.purchase.PurchaseReceiveCommand;
+import com.wecombft.application.command.purchase.ReceivedItemCommand;
+import com.wecombft.application.command.purchase.SupplierConfirmCommand;
+import com.wecombft.application.command.purchase.SupplierLogisticsCommand;
+import com.wecombft.application.command.purchase.SupplierRejectCommand;
+import com.wecombft.interfaces.dto.purchase.PurchaseItemResponse;
+import com.wecombft.interfaces.dto.purchase.PurchasePage;
+import com.wecombft.interfaces.dto.purchase.PurchaseReceiptResponse;
+import com.wecombft.interfaces.dto.purchase.PurchaseResponse;
+import com.wecombft.interfaces.dto.purchase.PurchaseSummary;
+import com.wecombft.interfaces.dto.purchase.ReceiptRow;
+import com.wecombft.interfaces.dto.purchase.StockFlowResponse;
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
@@ -964,95 +979,6 @@ public class PurchaseApplicationService {
     }
 
     public record CreationResult<T>(T response, boolean created) {
-    }
-
-    public record PurchaseCreateCommand(Long supplierId, List<PurchaseItemCommand> purchaseItems, String submitReason, LocalDate expectedArrivalDate) {
-    }
-
-    public record PurchaseItemCommand(Long skuId, Integer quantity, Long unitPriceCent) {
-    }
-
-    public record ApprovalActionCommand(String action, @JsonAlias("approval_comment") String comment) {
-    }
-
-    public record SupplierConfirmCommand(LocalDate expectedArrivalDate, String remark) {
-    }
-
-    public record SupplierRejectCommand(String supplierRejectReason) {
-    }
-
-    public record SupplierLogisticsCommand(String logisticsCompanyName, String trackingNo, String remark) {
-    }
-
-    public record PurchaseReceiveCommand(String inboundBatchNo, List<ReceivedItemCommand> receivedItems, String remark) {
-    }
-
-    public record ReceivedItemCommand(Long skuId, Integer receivedQuantity) {
-    }
-
-    public record PurchaseInputInvoiceCommand(String inputInvoiceNo, Long inputInvoiceAmountCent, String inputInvoiceFile) {
-    }
-
-    public record PurchasePage(List<PurchaseSummary> records, int pageNo, int pageSize, long total) {
-    }
-
-    public record PurchaseSummary(long purchaseId, String purchaseNo, long supplierId, long totalAmountCent, String purchaseStatus, String inputInvoiceStatus, Long approvalId, LocalDateTime createdAt) {
-    }
-
-    public record PurchaseResponse(
-        long purchaseId,
-        String purchaseNo,
-        long supplierId,
-        long applicantUserId,
-        long totalAmountCent,
-        String purchaseStatus,
-        String inputInvoiceStatus,
-        Long approvalId,
-        Long thresholdSnapshotCent,
-        LocalDate expectedArrivalDate,
-        LocalDateTime supplierConfirmAt,
-        String supplierRejectReason,
-        String logisticsCompanyName,
-        String trackingNo,
-        LocalDateTime receivedAt,
-        Long receiverUserId,
-        String inputInvoiceNo,
-        Long inputInvoiceAmountCent,
-        String inputInvoiceFile,
-        List<PurchaseItemResponse> purchaseItems,
-        List<ReceiptRow> receipts,
-        List<StockFlowResponse> stockFlows
-    ) {
-    }
-
-    public record PurchaseItemResponse(long itemId, int lineNo, long skuId, String skuNo, String skuName, int quantity, long unitPriceCent, long totalAmountCent, int receivedQuantity) {
-    }
-
-    public record PurchaseReceiptResponse(long receiptId, String receiptNo, long purchaseId, String purchaseNo, String status, LocalDateTime receivedAt, List<Long> stockFlowIds, String purchaseStatus) {
-    }
-
-    public record StockFlowResponse(
-        long flowId,
-        String flowNo,
-        long skuId,
-        String bizType,
-        long bizId,
-        String bizNo,
-        Long orderId,
-        Long shipmentId,
-        Long purchaseId,
-        String direction,
-        int quantity,
-        int beforeStock,
-        int afterStock,
-        Long operatorUserId,
-        LocalDateTime occurredAt,
-        String idempotencyKey,
-        String remark
-    ) {
-    }
-
-    public record ReceiptRow(long id, String receiptNo, long purchaseId, String purchaseNo, String inboundBatchNo, String status, LocalDateTime receivedAt, long receiverUserId, String stockFlowIds, String remark) {
     }
 
     private record SkuStock(long skuId, String skuNo, String skuName, String status, int currentStock, int availableStock) {

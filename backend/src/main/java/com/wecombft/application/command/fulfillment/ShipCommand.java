@@ -1,4 +1,4 @@
-package com.wecombft.application.fulfillment.command;
+package com.wecombft.application.command.fulfillment;
 
 public record ShipCommand(String logisticsCompanyCode, String logisticsCompanyName, String trackingNo, String waybillFile, String remark, String mockScenario) {
 }

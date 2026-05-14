@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.fulfillment.FulfillmentApplicationService;
-import com.wecombft.application.fulfillment.command.ShipCommand;
-import com.wecombft.application.fulfillment.command.SignCommand;
-import com.wecombft.application.fulfillment.response.ShipmentActionResponse;
-import com.wecombft.application.fulfillment.response.ShipmentDetailResponse;
-import com.wecombft.application.fulfillment.response.ShipmentPage;
+import com.wecombft.application.command.fulfillment.ShipCommand;
+import com.wecombft.application.command.fulfillment.SignCommand;
+import com.wecombft.interfaces.dto.fulfillment.ShipmentActionResponse;
+import com.wecombft.interfaces.dto.fulfillment.ShipmentDetailResponse;
+import com.wecombft.interfaces.dto.fulfillment.ShipmentPage;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;

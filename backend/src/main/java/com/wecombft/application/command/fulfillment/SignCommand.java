@@ -1,4 +1,4 @@
-package com.wecombft.application.fulfillment.command;
+package com.wecombft.application.command.fulfillment;
 
 import java.time.LocalDateTime;
 

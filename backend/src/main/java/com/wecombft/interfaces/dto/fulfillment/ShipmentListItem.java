@@ -1,18 +1,18 @@
-package com.wecombft.application.fulfillment.response;
+package com.wecombft.interfaces.dto.fulfillment;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-public record ShipmentActionResponse(
+public record ShipmentListItem(
     long shipmentId,
     String shipmentNo,
     long orderId,
+    String orderNo,
+    long studentId,
     String status,
     String logisticsCompanyName,
     String trackingNo,
     LocalDateTime shippedAt,
     LocalDateTime signedAt,
-    List<Long> stockFlowIds,
     boolean exceptionFlag,
     String exceptionReason
 ) {

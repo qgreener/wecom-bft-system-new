@@ -1,4 +1,4 @@
-package com.wecombft.application.fulfillment.response;
+package com.wecombft.interfaces.dto.fulfillment;
 
 import java.util.List;
 

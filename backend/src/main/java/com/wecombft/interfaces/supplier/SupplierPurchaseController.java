@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.purchase.PurchaseApplicationService;
-import com.wecombft.application.purchase.PurchaseApplicationService.PurchasePage;
-import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseResponse;
-import com.wecombft.application.purchase.PurchaseApplicationService.SupplierConfirmCommand;
-import com.wecombft.application.purchase.PurchaseApplicationService.SupplierLogisticsCommand;
-import com.wecombft.application.purchase.PurchaseApplicationService.SupplierRejectCommand;
+import com.wecombft.application.command.purchase.SupplierConfirmCommand;
+import com.wecombft.application.command.purchase.SupplierLogisticsCommand;
+import com.wecombft.application.command.purchase.SupplierRejectCommand;
+import com.wecombft.interfaces.dto.purchase.PurchasePage;
+import com.wecombft.interfaces.dto.purchase.PurchaseResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
