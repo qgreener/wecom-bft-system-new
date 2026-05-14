@@ -218,6 +218,21 @@ class S7AfterSalesFinanceControllerTest {
         issueInvoice(accountingToken, invoiceId, "S7INV-MAIN", "FILE_S7_INVOICE_MAIN");
         assertThat(findString("trade_order", "invoice_status", orderId)).isEqualTo("ISSUED");
 
+        mockMvc.perform(post("/api/callbacks/invoices/red-reverse")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "event_no": "S7_RED_FAIL_%d",
+                      "invoice_apply_no": "%s",
+                      "status": "FAILED",
+                      "failure_reason": "Mock 红冲失败",
+                      "raw_snapshot": {"scenario":"red_failed"}
+                    }
+                    """.formatted(invoiceId, findString("tax_invoice", "invoice_apply_no", invoiceId))))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.data.status").value("ISSUED"));
+        assertThat(findString("tax_invoice", "failure_reason", invoiceId)).isEqualTo("Mock 红冲失败");
+
         mockMvc.perform(post("/api/admin/invoices/{invoice_id}/red-reverse", invoiceId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-red-manual")
@@ -250,10 +265,32 @@ class S7AfterSalesFinanceControllerTest {
     @Test
     void should_import_reconciliation_records_without_mutating_payment_or_refund_status() throws Exception {
         String studentToken = appLogin("DEMO_APP_STUDENT");
+        String serviceToken = adminLogin("DEMO_SERVICE");
         String accountingToken = adminLogin("DEMO_ACCOUNTING");
         long orderId = createPaidOrder(studentToken, false, null, "s7-recon-paid", 56800);
         String merchantOrderNo = findString("trade_order", "merchant_order_no", orderId);
         String paymentStatusBefore = findString("trade_order", "payment_status", orderId);
+        long refundOrderId = createPaidOrder(studentToken, false, null, "s7-recon-refund", 46800);
+        String refundMerchantOrderNo = findString("trade_order", "merchant_order_no", refundOrderId);
+        long refundId = applyRefund(studentToken, refundOrderId, 46800, "s7-recon-refund-key", "FREEZE");
+        String refundNo = findString("pay_refund", "refund_no", refundId);
+        String externalRefundNo = "S7EXTRECON" + refundId;
+        approveOriginal(serviceToken, refundId, 46800, "FREEZE", "s7-approve-recon-refund");
+        mockMvc.perform(post("/api/callbacks/refunds/wechat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "event_no": "S7_REFUND_RECON_%d",
+                      "refund_no": "%s",
+                      "external_refund_no": "%s",
+                      "refund_status": "SUCCESS",
+                      "refunded_amount_cent": 46800,
+                      "refunded_at": "2026-05-15T11:30:00",
+                      "raw_snapshot": {"scenario":"recon_refund"}
+                    }
+                    """.formatted(refundId, refundNo, externalRefundNo)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("REFUNDED"));
 
         String response = mockMvc.perform(post("/api/admin/reconciliations/import")
                 .header("Authorization", "Bearer " + accountingToken)
@@ -271,7 +308,8 @@ class S7AfterSalesFinanceControllerTest {
                         {"record_type":"PAYMENT","merchant_order_no":"%s","external_transaction_no":"S7PAY-FEE-%d","bill_amount_cent":56800,"fee_amount_cent":10},
                         {"record_type":"PAYMENT","merchant_order_no":"S7-UNKNOWN-%d","external_transaction_no":"S7PAY-UNKNOWN-%d","bill_amount_cent":100,"fee_amount_cent":0},
                         {"record_type":"PAYMENT","merchant_order_no":"S7-DUP-%d","external_transaction_no":"S7PAY-DUP","bill_amount_cent":1,"fee_amount_cent":0},
-                        {"record_type":"PAYMENT","merchant_order_no":"S7-DUP-%d","external_transaction_no":"S7PAY-DUP","bill_amount_cent":1,"fee_amount_cent":0}
+                        {"record_type":"PAYMENT","merchant_order_no":"S7-DUP-%d","external_transaction_no":"S7PAY-DUP","bill_amount_cent":1,"fee_amount_cent":0},
+                        {"record_type":"REFUND","merchant_order_no":"%s","external_transaction_no":"%s","bill_amount_cent":46800,"fee_amount_cent":0}
                       ]
                     }
                     """.formatted(
@@ -284,9 +322,11 @@ class S7AfterSalesFinanceControllerTest {
                         orderId,
                         orderId,
                         orderId,
-                        orderId)))
+                        orderId,
+                        refundMerchantOrderNo,
+                        externalRefundNo)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.data.total_count").value(6))
+            .andExpect(jsonPath("$.data.total_count").value(7))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -302,7 +342,8 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(jsonPath("$.data.records[*].result", hasItem("DUPLICATE")));
 
         assertThat(findString("trade_order", "payment_status", orderId)).isEqualTo(paymentStatusBefore);
-        assertThat(countRows("finance_reconciliation_record", "batch_id", batchId)).isEqualTo(6);
+        assertThat(findString("pay_refund", "status", refundId)).isEqualTo("REFUNDED");
+        assertThat(countRows("finance_reconciliation_record", "batch_id", batchId)).isEqualTo(7);
     }
 
     @Test
@@ -366,10 +407,25 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(jsonPath("$.data.file_no").value("FILE_S7_MATERIAL_001"))
             .andExpect(jsonPath("$.data.download_allowed").value(true));
 
+        mockMvc.perform(post("/api/admin/accounting-materials/{material_id}/close", materialId)
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-material-close")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"closed_reason\":\"S7 材料归档关闭\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("CLOSED"));
+
+        mockMvc.perform(get("/api/admin/accounting-workbench/summary")
+                .header("Authorization", "Bearer " + accountingToken)
+                .param("related_month", "2026-05"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.income_amount_cent").value(43800))
+            .andExpect(jsonPath("$.data.material_status_counts.CLOSED").value(1));
+
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from audit_operation_log where operation_module = 'ACCOUNTING' and target_id = ?",
                 Integer.class,
-                materialId)).isGreaterThanOrEqualTo(4);
+                materialId)).isGreaterThanOrEqualTo(5);
     }
 
     @Test

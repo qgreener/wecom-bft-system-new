@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -890,6 +891,68 @@ public class AfterSalesFinanceApplicationService {
     }
 
     @Transactional
+    public AccountingMaterialResponse closeAccountingMaterial(AdminPrincipal principal, String idempotencyKey, long materialId, AccountingMaterialCloseCommand command) {
+        requireAdmin(principal);
+        requireIdempotencyKey(idempotencyKey);
+        AccountingMaterialRow material = requireMaterial(materialId);
+        if ("CLOSED".equals(material.status())) {
+            return toAccountingMaterialResponse(material);
+        }
+        jdbcTemplate.update(
+            """
+            update acct_material
+            set status = 'CLOSED',
+                closed_reason = ?,
+                updated_by = ?,
+                version = version + 1
+            where id = ? and status <> 'CLOSED'
+            """,
+            requireText(command == null ? null : command.closedReason(), "关闭原因不能为空"),
+            principal.userId(),
+            materialId);
+        auditLogService.writeSuccess(principal, "ACCOUNTING", "MATERIAL_CLOSE", "ACCT_MATERIAL", material.id(), material.materialNo(), material.orderId(), "{\"status\":\"CLOSED\"}");
+        return toAccountingMaterialResponse(requireMaterial(materialId));
+    }
+
+    public AccountingWorkbenchSummaryResponse accountingWorkbenchSummary(AdminPrincipal principal, String relatedMonth) {
+        requireAdmin(principal);
+        MonthRange range = monthRange(relatedMonth);
+        long incomeAmount = sumByTimeRange(
+            "select coalesce(sum(paid_amount_cent), 0) from pay_payment where payment_result = 'SUCCESS'",
+            "paid_at",
+            range);
+        long refundAmount = sumByTimeRange(
+            "select coalesce(sum(coalesce(approved_amount_cent, apply_amount_cent)), 0) from pay_refund where status = 'REFUNDED'",
+            "refunded_at",
+            range);
+        long purchaseAmount = sumByTimeRange(
+            "select coalesce(sum(total_amount_cent), 0) from purchase_order where purchase_status = 'COMPLETED'",
+            "created_at",
+            range);
+        long issuedInvoiceAmount = sumByTimeRange(
+            "select coalesce(sum(invoice_amount_cent), 0) from tax_invoice where status in ('ISSUED', 'RED_REVERSED')",
+            "issued_at",
+            range);
+        long redReversedInvoiceAmount = sumByTimeRange(
+            "select coalesce(sum(invoice_amount_cent), 0) from tax_invoice where status = 'RED_REVERSED'",
+            "red_reversed_at",
+            range);
+        int reconciliationDiffCount = countByTimeRange(
+            "select count(*) from finance_reconciliation_record where result <> 'MATCHED'",
+            "created_at",
+            range);
+        return new AccountingWorkbenchSummaryResponse(
+            relatedMonth,
+            incomeAmount,
+            refundAmount,
+            purchaseAmount,
+            issuedInvoiceAmount,
+            redReversedInvoiceAmount,
+            reconciliationDiffCount,
+            materialStatusCounts(relatedMonth));
+    }
+
+    @Transactional
     public CompensationRetryResponse retryCompensation(AdminPrincipal principal, String idempotencyKey, long compensationId, CompensationRetryCommand command) {
         requireAdmin(principal);
         requireIdempotencyKey(idempotencyKey);
@@ -1739,6 +1802,59 @@ public class AfterSalesFinanceApplicationService {
         }
     }
 
+    private Map<String, Integer> materialStatusCounts(String relatedMonth) {
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+            """
+            select status, count(*) as count_value
+            from acct_material
+            where 1 = 1
+            """);
+        if (relatedMonth != null && !relatedMonth.isBlank()) {
+            sql.append(" and related_month = ?");
+            args.add(relatedMonth.trim());
+        }
+        sql.append(" group by status");
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        jdbcTemplate.query(sql.toString(), rs -> {
+            counts.put(rs.getString("status"), rs.getInt("count_value"));
+        }, args.toArray());
+        return counts;
+    }
+
+    private long sumByTimeRange(String baseSql, String timeColumn, MonthRange range) {
+        return queryLongByTimeRange(baseSql, timeColumn, range);
+    }
+
+    private int countByTimeRange(String baseSql, String timeColumn, MonthRange range) {
+        return Math.toIntExact(queryLongByTimeRange(baseSql, timeColumn, range));
+    }
+
+    private long queryLongByTimeRange(String baseSql, String timeColumn, MonthRange range) {
+        if (range == null) {
+            Long value = jdbcTemplate.queryForObject(baseSql, Long.class);
+            return value == null ? 0L : value;
+        }
+        Long value = jdbcTemplate.queryForObject(
+            baseSql + " and " + timeColumn + " >= ? and " + timeColumn + " < ?",
+            Long.class,
+            range.startAt(),
+            range.endAt());
+        return value == null ? 0L : value;
+    }
+
+    private MonthRange monthRange(String relatedMonth) {
+        if (relatedMonth == null || relatedMonth.isBlank()) {
+            return null;
+        }
+        try {
+            YearMonth yearMonth = YearMonth.parse(relatedMonth.trim());
+            return new MonthRange(yearMonth.atDay(1).atStartOfDay(), yearMonth.plusMonths(1).atDay(1).atStartOfDay());
+        } catch (RuntimeException exception) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "月份格式应为 yyyy-MM");
+        }
+    }
+
     private void validateRefundCallback(RefundCallbackCommand command) {
         if (command == null
             || command.eventNo() == null || command.eventNo().isBlank()
@@ -1896,6 +2012,9 @@ public class AfterSalesFinanceApplicationService {
     public record AccountingMaterialConfirmCommand(String remark) {
     }
 
+    public record AccountingMaterialCloseCommand(String closedReason) {
+    }
+
     public record CompensationRetryCommand(String compensationType, String action, String remark) {
     }
 
@@ -1938,6 +2057,9 @@ public class AfterSalesFinanceApplicationService {
     public record AccountingMaterialDownloadResponse(long materialId, String materialNo, String fileNo, boolean downloadAllowed, String downloadReason) {
     }
 
+    public record AccountingWorkbenchSummaryResponse(String relatedMonth, long incomeAmountCent, long refundAmountCent, long purchaseAmountCent, long issuedInvoiceAmountCent, long redReversedInvoiceAmountCent, int reconciliationDiffCount, Map<String, Integer> materialStatusCounts) {
+    }
+
     public record CompensationRetryResponse(long compensationId, String relatedObjectType, String processingStatus, String message) {
     }
 
@@ -1969,5 +2091,8 @@ public class AfterSalesFinanceApplicationService {
     }
 
     private record AccountingMaterialRow(long id, String materialNo, String materialType, String status, String relatedMonth, Long orderId, String orderNo, String relatedObjectType, Long relatedObjectId, String relatedObjectNo, long requestUserId, Long assigneeUserId, String purpose, LocalDateTime dueAt, String fileRefsJson, Long uploadedBy, LocalDateTime uploadedAt, Long confirmedBy, LocalDateTime confirmedAt, String closedReason) {
+    }
+
+    private record MonthRange(LocalDateTime startAt, LocalDateTime endAt) {
     }
 }

@@ -12,10 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialConfirmCommand;
+import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialCloseCommand;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialCreateCommand;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialDownloadResponse;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialResponse;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingMaterialUploadCommand;
+import com.wecombft.application.finance.AfterSalesFinanceApplicationService.AccountingWorkbenchSummaryResponse;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.CompensationRetryCommand;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.CompensationRetryResponse;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService.CreationResult;
@@ -259,6 +261,28 @@ public class AfterSalesFinanceController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
             service.downloadAccountingMaterial(AdminPrincipalContext.currentOrNull(), materialId, fileNo, downloadReason),
+            TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/accounting-materials/{material_id}/close")
+    @RequirePermission("accounting:material:write")
+    public ResponseEntity<ApiResponse<AccountingMaterialResponse>> closeAccountingMaterial(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("material_id") long materialId,
+        @RequestBody AccountingMaterialCloseCommand command
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.closeAccountingMaterial(AdminPrincipalContext.currentOrNull(), idempotencyKey, materialId, command),
+            TraceIds.currentOrCreate()));
+    }
+
+    @GetMapping("/api/admin/accounting-workbench/summary")
+    @RequireAnyPermission({"tax:invoice:write", "finance:reconciliation:write", "accounting:material:write"})
+    public ResponseEntity<ApiResponse<AccountingWorkbenchSummaryResponse>> accountingWorkbenchSummary(
+        @RequestParam(value = "related_month", required = false) String relatedMonth
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.accountingWorkbenchSummary(AdminPrincipalContext.currentOrNull(), relatedMonth),
             TraceIds.currentOrCreate()));
     }
 
