@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.iam.AdminAuthApplicationService;
-import com.wecombft.application.iam.AdminAuthApplicationService.CurrentUserResponse;
-import com.wecombft.application.iam.AdminAuthApplicationService.TestLoginResponse;
+import com.wecombft.interfaces.dto.iam.CurrentUserResponse;
+import com.wecombft.interfaces.dto.iam.TestLoginRequest;
+import com.wecombft.interfaces.dto.iam.TestLoginResponse;
+import com.wecombft.interfaces.dto.iam.WecomLoginRequest;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -43,11 +45,5 @@ public class AdminAuthController {
         return ResponseEntity.ok(ApiResponse.ok(
             authApplicationService.currentUser(authorization),
             TraceIds.currentOrCreate()));
-    }
-
-    public record TestLoginRequest(String userNo) {
-    }
-
-    public record WecomLoginRequest(String authCode, String redirectUri) {
     }
 }

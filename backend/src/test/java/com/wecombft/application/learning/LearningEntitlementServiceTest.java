@@ -11,9 +11,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.wecombft.application.learning.LearningEntitlementService.EntitlementEventResult;
-import com.wecombft.application.learning.LearningEntitlementService.PaymentSuccessEntitlementCommand;
-import com.wecombft.application.learning.LearningEntitlementService.RefundEntitlementCommand;
+import com.wecombft.application.learning.EntitlementEventResult;
+import com.wecombft.application.command.learning.PaymentSuccessEntitlementCommand;
+import com.wecombft.application.command.learning.RefundEntitlementCommand;
 
 @SpringBootTest
 @ActiveProfiles("test")

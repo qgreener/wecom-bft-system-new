@@ -17,6 +17,15 @@ import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.crm.FollowRecordCommand;
+import com.wecombft.application.command.crm.LeadPaidConversionCommand;
+import com.wecombft.application.command.crm.LeadSaveCommand;
+import com.wecombft.application.command.crm.LeadStatusCommand;
+import com.wecombft.application.command.crm.PublicLeadCommand;
+import com.wecombft.interfaces.dto.crm.FollowRecordResponse;
+import com.wecombft.interfaces.dto.crm.LeadPage;
+import com.wecombft.interfaces.dto.crm.LeadPaidConversionResponse;
+import com.wecombft.interfaces.dto.crm.LeadResponse;
 @Service
 public class LeadApplicationService {
 
@@ -554,80 +563,12 @@ public class LeadApplicationService {
     ) {
     }
 
-    public record PublicLeadCommand(String name, String mobile, String sourceCode, Long intentCourseId) {
-    }
 
-    public record LeadSaveCommand(
-        Long leadId,
-        String name,
-        String mobile,
-        String sourceChannel,
-        String sourceCode,
-        Long intentCourseId,
-        Long ownerUserId,
-        String wecomExternalUserId,
-        LocalDateTime nextFollowAt,
-        String remark
-    ) {
-    }
 
-    public record FollowRecordCommand(String followMethod, String content, LocalDateTime nextFollowAt) {
-    }
 
-    public record LeadStatusCommand(String targetStatus, String abandonReason, LocalDateTime nextFollowAt) {
-    }
 
-    public record LeadResponse(
-        long leadId,
-        String leadNo,
-        String name,
-        String mobile,
-        String sourceChannel,
-        String sourceCode,
-        Long intentCourseId,
-        Long ownerUserId,
-        String wecomExternalUserId,
-        String status,
-        boolean matchExceptionFlag,
-        LocalDateTime nextFollowAt,
-        LocalDateTime latestFollowAt,
-        Long studentId,
-        Long convertedOrderId,
-        String abandonReason
-    ) {
-    }
 
-    public record FollowRecordResponse(
-        long followRecordId,
-        long leadId,
-        String followMethod,
-        String content,
-        LocalDateTime nextFollowAt,
-        String status
-    ) {
-    }
 
-    public record LeadPage(List<LeadResponse> records, int pageNo, int pageSize, int total) {
-    }
 
-    public record LeadPaidConversionCommand(
-        Long studentId,
-        String mobile,
-        String wecomExternalUserId,
-        Long orderId,
-        LocalDateTime paidAt
-    ) {
-    }
 
-    public record LeadPaidConversionResponse(
-        boolean matched,
-        Long leadId,
-        String leadNo,
-        String status,
-        Long studentId,
-        Long orderId,
-        boolean idempotentHit,
-        String missReason
-    ) {
-    }
 }

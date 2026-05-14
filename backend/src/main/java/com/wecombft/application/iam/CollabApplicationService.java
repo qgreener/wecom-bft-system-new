@@ -12,6 +12,8 @@ import com.wecombft.infrastructure.persistence.notification.NotificationReposito
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 
+import com.wecombft.interfaces.dto.iam.ApprovalPage;
+import com.wecombft.interfaces.dto.iam.NotificationPage;
 @Service
 public class CollabApplicationService {
 
@@ -47,9 +49,5 @@ public class CollabApplicationService {
         return new NotificationPage(notificationRepository.search(new NotificationQuery(sceneCode, receiverUserId)));
     }
 
-    public record ApprovalPage(List<ApprovalRecord> records) {
-    }
 
-    public record NotificationPage(List<NotificationRecord> records) {
-    }
 }

@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.iam.CollabApplicationService;
-import com.wecombft.application.iam.CollabApplicationService.ApprovalPage;
-import com.wecombft.application.iam.CollabApplicationService.NotificationPage;
+import com.wecombft.interfaces.dto.iam.ApprovalPage;
+import com.wecombft.interfaces.dto.iam.NotificationPage;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;

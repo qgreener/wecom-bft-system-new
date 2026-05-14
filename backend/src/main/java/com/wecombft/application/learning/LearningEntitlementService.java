@@ -12,6 +12,8 @@ import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.learning.PaymentSuccessEntitlementCommand;
+import com.wecombft.application.command.learning.RefundEntitlementCommand;
 @Service
 public class LearningEntitlementService {
 
@@ -148,34 +150,6 @@ public class LearningEntitlementService {
     private record EntitlementRow(long id, String entitlementNo, String status) {
     }
 
-    public record PaymentSuccessEntitlementCommand(
-        long studentId,
-        long userId,
-        long orderId,
-        String orderNo,
-        long orderItemId,
-        long courseId,
-        long specId,
-        String courseSnapshotJson,
-        LocalDateTime openedAt
-    ) {
-    }
 
-    public record RefundEntitlementCommand(
-        long studentId,
-        long orderId,
-        long courseId,
-        long refundId,
-        String action,
-        LocalDateTime occurredAt
-    ) {
-    }
 
-    public record EntitlementEventResult(
-        long entitlementId,
-        String entitlementNo,
-        String status,
-        boolean idempotentHit
-    ) {
-    }
 }

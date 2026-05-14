@@ -30,6 +30,7 @@ import com.wecombft.interfaces.dto.inventory.StockFlowResponse;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.CreationResult;
 @Service
 public class InventoryApplicationService {
 
@@ -684,8 +685,6 @@ public class InventoryApplicationService {
             row.remark());
     }
 
-    public record CreationResult<T>(T response, boolean created) {
-    }
 
     private record SkuRow(
         long skuId,

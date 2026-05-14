@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.crm.LeadApplicationService;
-import com.wecombft.application.crm.LeadApplicationService.FollowRecordCommand;
-import com.wecombft.application.crm.LeadApplicationService.FollowRecordResponse;
-import com.wecombft.application.crm.LeadApplicationService.LeadPage;
-import com.wecombft.application.crm.LeadApplicationService.LeadResponse;
-import com.wecombft.application.crm.LeadApplicationService.LeadSaveCommand;
-import com.wecombft.application.crm.LeadApplicationService.LeadStatusCommand;
+import com.wecombft.interfaces.dto.crm.FollowRecordRequest;
+import com.wecombft.interfaces.dto.crm.FollowRecordResponse;
+import com.wecombft.interfaces.dto.crm.LeadPage;
+import com.wecombft.interfaces.dto.crm.LeadResponse;
+import com.wecombft.interfaces.dto.crm.LeadSaveRequest;
+import com.wecombft.interfaces.dto.crm.LeadStatusRequest;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
@@ -48,9 +48,9 @@ public class LeadAdminController {
 
     @PostMapping("/api/admin/leads")
     @RequirePermission("crm:lead:write")
-    public ResponseEntity<ApiResponse<LeadResponse>> saveLead(@RequestBody LeadSaveCommand command) {
+    public ResponseEntity<ApiResponse<LeadResponse>> saveLead(@RequestBody LeadSaveRequest command) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(leadApplicationService.createAdminLead(command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(leadApplicationService.createAdminLead(command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/leads/{lead_id}/follow-records")
@@ -58,20 +58,20 @@ public class LeadAdminController {
     public ResponseEntity<ApiResponse<FollowRecordResponse>> follow(
         @PathVariable("lead_id") long leadId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody FollowRecordCommand command
+        @RequestBody FollowRecordRequest command
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(leadApplicationService.createFollowRecord(leadId, idempotencyKey, command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(leadApplicationService.createFollowRecord(leadId, idempotencyKey, command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/leads/{lead_id}/status")
     @RequirePermission("crm:lead:write")
     public ResponseEntity<ApiResponse<LeadResponse>> status(
         @PathVariable("lead_id") long leadId,
-        @RequestBody LeadStatusCommand command
+        @RequestBody LeadStatusRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            leadApplicationService.updateLeadStatus(leadId, command),
+            leadApplicationService.updateLeadStatus(leadId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

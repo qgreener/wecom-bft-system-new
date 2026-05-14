@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.purchase.PurchaseApplicationService;
-import com.wecombft.application.command.purchase.SupplierConfirmCommand;
-import com.wecombft.application.command.purchase.SupplierLogisticsCommand;
-import com.wecombft.application.command.purchase.SupplierRejectCommand;
+import com.wecombft.interfaces.dto.purchase.SupplierConfirmRequest;
+import com.wecombft.interfaces.dto.purchase.SupplierLogisticsRequest;
+import com.wecombft.interfaces.dto.purchase.SupplierRejectRequest;
 import com.wecombft.interfaces.dto.purchase.PurchasePage;
 import com.wecombft.interfaces.dto.purchase.PurchaseResponse;
 import com.wecombft.shared.trace.TraceIds;
@@ -54,10 +54,10 @@ public class SupplierPurchaseController {
         @RequestHeader("Authorization") String authorization,
         @PathVariable("purchase_id") long purchaseId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody SupplierConfirmCommand command
+        @RequestBody SupplierConfirmRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            purchaseApplicationService.supplierConfirm(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierConfirm(authorization, purchaseId, idempotencyKey, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -66,10 +66,10 @@ public class SupplierPurchaseController {
         @RequestHeader("Authorization") String authorization,
         @PathVariable("purchase_id") long purchaseId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody SupplierRejectCommand command
+        @RequestBody SupplierRejectRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            purchaseApplicationService.supplierReject(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierReject(authorization, purchaseId, idempotencyKey, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -78,10 +78,10 @@ public class SupplierPurchaseController {
         @RequestHeader("Authorization") String authorization,
         @PathVariable("purchase_id") long purchaseId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody SupplierLogisticsCommand command
+        @RequestBody SupplierLogisticsRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            purchaseApplicationService.supplierLogistics(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierLogistics(authorization, purchaseId, idempotencyKey, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

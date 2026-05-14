@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.inventory.InventoryApplicationService;
-import com.wecombft.application.inventory.InventoryApplicationService.CreationResult;
-import com.wecombft.application.command.inventory.SkuCommand;
-import com.wecombft.application.command.inventory.StockFlowCommand;
+import com.wecombft.application.CreationResult;
+import com.wecombft.interfaces.dto.inventory.SkuRequest;
+import com.wecombft.interfaces.dto.inventory.StockFlowRequest;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.interfaces.dto.inventory.SkuPage;
@@ -53,12 +53,12 @@ public class InventoryAdminController {
     @RequirePermission("inventory:sku:write")
     public ResponseEntity<ApiResponse<SkuResponse>> createSku(
         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-        @RequestBody SkuCommand command
+        @RequestBody SkuRequest command
     ) {
         CreationResult<SkuResponse> result = inventoryApplicationService.createSku(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
-            command);
+            command == null ? null : command.toCommand());
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status)
             .body(result.created()
@@ -101,12 +101,12 @@ public class InventoryAdminController {
     @RequirePermission("inventory:sku:write")
     public ResponseEntity<ApiResponse<StockFlowResponse>> createStockFlow(
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody StockFlowCommand command
+        @RequestBody StockFlowRequest command
     ) {
         CreationResult<StockFlowResponse> result = inventoryApplicationService.createStockFlow(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
-            command);
+            command == null ? null : command.toCommand());
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status)
             .body(result.created()

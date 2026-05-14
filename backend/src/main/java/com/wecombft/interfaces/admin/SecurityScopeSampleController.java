@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.iam.SecurityScopeSampleService;
-import com.wecombft.application.iam.SecurityScopeSampleService.ScopeSampleResponse;
+import com.wecombft.interfaces.dto.iam.ScopeSampleResponse;
 import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;

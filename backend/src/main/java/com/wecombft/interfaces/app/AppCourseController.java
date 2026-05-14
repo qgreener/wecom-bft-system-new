@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.course.CourseApplicationService;
-import com.wecombft.application.course.CourseApplicationService.AppCoursePage;
-import com.wecombft.application.course.CourseApplicationService.CourseDetailResponse;
-import com.wecombft.application.course.CourseApplicationService.CourseSpecsResponse;
-import com.wecombft.application.course.CourseApplicationService.EntitlementLessonsResponse;
-import com.wecombft.application.course.CourseApplicationService.EntitlementPage;
+import com.wecombft.interfaces.dto.course.AppCoursePage;
+import com.wecombft.interfaces.dto.course.CourseDetailResponse;
+import com.wecombft.interfaces.dto.course.CourseSpecsResponse;
+import com.wecombft.interfaces.dto.course.EntitlementLessonsResponse;
+import com.wecombft.interfaces.dto.course.EntitlementPage;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 

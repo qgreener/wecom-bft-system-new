@@ -11,18 +11,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.course.CourseApplicationService;
-import com.wecombft.application.course.CourseApplicationService.CourseApprovalActionCommand;
-import com.wecombft.application.course.CourseApplicationService.CourseApprovalActionResponse;
-import com.wecombft.application.course.CourseApplicationService.CourseApprovalCommand;
-import com.wecombft.application.course.CourseApplicationService.CourseApprovalResponse;
-import com.wecombft.application.course.CourseApplicationService.CourseDetailResponse;
-import com.wecombft.application.course.CourseApplicationService.CoursePage;
-import com.wecombft.application.course.CourseApplicationService.CourseSaveCommand;
-import com.wecombft.application.course.CourseApplicationService.CourseSaveResponse;
-import com.wecombft.application.course.CourseApplicationService.CourseSpecCommand;
-import com.wecombft.application.course.CourseApplicationService.CourseSpecResponse;
-import com.wecombft.application.course.CourseApplicationService.LessonNodeCommand;
-import com.wecombft.application.course.CourseApplicationService.LessonNodeResponse;
+import com.wecombft.interfaces.dto.course.CourseApprovalActionRequest;
+import com.wecombft.interfaces.dto.course.CourseApprovalActionResponse;
+import com.wecombft.interfaces.dto.course.CourseApprovalRequest;
+import com.wecombft.interfaces.dto.course.CourseApprovalResponse;
+import com.wecombft.interfaces.dto.course.CourseDetailResponse;
+import com.wecombft.interfaces.dto.course.CoursePage;
+import com.wecombft.interfaces.dto.course.CourseSaveRequest;
+import com.wecombft.interfaces.dto.course.CourseSaveResponse;
+import com.wecombft.interfaces.dto.course.CourseSpecRequest;
+import com.wecombft.interfaces.dto.course.CourseSpecResponse;
+import com.wecombft.interfaces.dto.course.LessonNodeRequest;
+import com.wecombft.interfaces.dto.course.LessonNodeResponse;
 import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
@@ -62,49 +62,49 @@ public class CourseAdminController {
 
     @PostMapping("/api/admin/courses")
     @RequirePermission("course:spec:write")
-    public ResponseEntity<ApiResponse<CourseSaveResponse>> saveCourse(@RequestBody CourseSaveCommand command) {
+    public ResponseEntity<ApiResponse<CourseSaveResponse>> saveCourse(@RequestBody CourseSaveRequest command) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(courseApplicationService.saveCourse(command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(courseApplicationService.saveCourse(command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/courses/{course_id}/specs")
     @RequirePermission("course:spec:write")
     public ResponseEntity<ApiResponse<CourseSpecResponse>> saveSpec(
         @PathVariable("course_id") long courseId,
-        @RequestBody CourseSpecCommand command
+        @RequestBody CourseSpecRequest command
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(courseApplicationService.saveSpec(courseId, command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(courseApplicationService.saveSpec(courseId, command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/courses/{course_id}/lesson-nodes")
     @RequireAnyPermission({"course:spec:write", "course:lesson:write"})
     public ResponseEntity<ApiResponse<LessonNodeResponse>> saveLessonNode(
         @PathVariable("course_id") long courseId,
-        @RequestBody LessonNodeCommand command
+        @RequestBody LessonNodeRequest command
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(courseApplicationService.saveLessonNode(courseId, command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(courseApplicationService.saveLessonNode(courseId, command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/courses/{course_id}/approval")
     @RequirePermission("course:spec:write")
     public ResponseEntity<ApiResponse<CourseApprovalResponse>> submitApproval(
         @PathVariable("course_id") long courseId,
-        @RequestBody CourseApprovalCommand command
+        @RequestBody CourseApprovalRequest command
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(courseApplicationService.submitApproval(courseId, command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(courseApplicationService.submitApproval(courseId, command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/collab/course-approvals/{approval_id}/actions")
     @RequirePermission("course:approval:approve")
     public ResponseEntity<ApiResponse<CourseApprovalActionResponse>> approvalAction(
         @PathVariable("approval_id") long approvalId,
-        @RequestBody CourseApprovalActionCommand command
+        @RequestBody CourseApprovalActionRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            courseApplicationService.approvalAction(approvalId, command),
+            courseApplicationService.approvalAction(approvalId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

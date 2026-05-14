@@ -13,6 +13,7 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.trace.TraceIds;
 
+import com.wecombft.interfaces.dto.audit.AuditPage;
 @Service
 public class AuditLogService {
 
@@ -128,6 +129,4 @@ public class AuditLogService {
             .replaceAll("1[3-9]\\d{9}", "139****0000");
     }
 
-    public record AuditPage(List<AuditLogRecord> records, int pageNo, int pageSize, int total) {
-    }
 }

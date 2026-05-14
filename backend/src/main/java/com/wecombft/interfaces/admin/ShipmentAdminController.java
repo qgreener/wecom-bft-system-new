@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.fulfillment.FulfillmentApplicationService;
-import com.wecombft.application.command.fulfillment.ShipCommand;
-import com.wecombft.application.command.fulfillment.SignCommand;
+import com.wecombft.interfaces.dto.fulfillment.ShipRequest;
+import com.wecombft.interfaces.dto.fulfillment.SignRequest;
 import com.wecombft.interfaces.dto.fulfillment.ShipmentActionResponse;
 import com.wecombft.interfaces.dto.fulfillment.ShipmentDetailResponse;
 import com.wecombft.interfaces.dto.fulfillment.ShipmentPage;
@@ -59,10 +59,10 @@ public class ShipmentAdminController {
     public ResponseEntity<ApiResponse<ShipmentActionResponse>> ship(
         @PathVariable("shipment_id") long shipmentId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody ShipCommand command
+        @RequestBody ShipRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            fulfillmentApplicationService.ship(AdminPrincipalContext.currentOrNull(), shipmentId, idempotencyKey, command),
+            fulfillmentApplicationService.ship(AdminPrincipalContext.currentOrNull(), shipmentId, idempotencyKey, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -70,10 +70,10 @@ public class ShipmentAdminController {
     @RequirePermission("fulfillment:shipment:write")
     public ResponseEntity<ApiResponse<ShipmentActionResponse>> sign(
         @PathVariable("shipment_id") long shipmentId,
-        @RequestBody SignCommand command
+        @RequestBody SignRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            fulfillmentApplicationService.sign(AdminPrincipalContext.currentOrNull(), shipmentId, command),
+            fulfillmentApplicationService.sign(AdminPrincipalContext.currentOrNull(), shipmentId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

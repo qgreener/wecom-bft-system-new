@@ -17,6 +17,9 @@ import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.iam.ApprovalActionCommand;
+import com.wecombft.application.command.iam.RoleApplicationCommand;
+import com.wecombft.interfaces.dto.iam.ApprovalResponse;
 @Service
 public class RoleApplicationService {
 
@@ -171,21 +174,6 @@ public class RoleApplicationService {
             approval.finishedAt());
     }
 
-    public record RoleApplicationCommand(String roleCode, String submitReason) {
-    }
 
-    public record ApprovalActionCommand(String action, String approvalComment) {
-    }
 
-    public record ApprovalResponse(
-        long approvalId,
-        String approvalNo,
-        String approvalType,
-        String title,
-        String roleCode,
-        String status,
-        LocalDateTime submittedAt,
-        LocalDateTime finishedAt
-    ) {
-    }
 }

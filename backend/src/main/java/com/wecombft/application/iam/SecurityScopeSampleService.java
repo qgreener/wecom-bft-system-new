@@ -10,6 +10,7 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.interfaces.dto.iam.ScopeSampleResponse;
 @Service
 public class SecurityScopeSampleService {
 
@@ -61,10 +62,4 @@ public class SecurityScopeSampleService {
     private record ScopeSample(String sampleId, boolean ownedByTeacher) {
     }
 
-    public record ScopeSampleResponse(
-        String sampleId,
-        String studentMobile,
-        String learningRecord
-    ) {
-    }
 }

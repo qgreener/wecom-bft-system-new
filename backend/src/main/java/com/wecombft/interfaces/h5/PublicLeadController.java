@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.crm.LeadApplicationService;
-import com.wecombft.application.crm.LeadApplicationService.LeadResponse;
-import com.wecombft.application.crm.LeadApplicationService.PublicLeadCommand;
+import com.wecombft.interfaces.dto.crm.LeadResponse;
+import com.wecombft.interfaces.dto.crm.PublicLeadRequest;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -22,8 +22,8 @@ public class PublicLeadController {
     }
 
     @PostMapping("/api/h5/lead/leads")
-    public ResponseEntity<ApiResponse<LeadResponse>> create(@RequestBody PublicLeadCommand command) {
+    public ResponseEntity<ApiResponse<LeadResponse>> create(@RequestBody PublicLeadRequest command) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.created(leadApplicationService.createPublicLead(command), TraceIds.currentOrCreate()));
+            .body(ApiResponse.created(leadApplicationService.createPublicLead(command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 }

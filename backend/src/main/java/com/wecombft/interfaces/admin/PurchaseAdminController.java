@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.purchase.PurchaseApplicationService;
-import com.wecombft.application.purchase.PurchaseApplicationService.CreationResult;
-import com.wecombft.application.command.purchase.ApprovalActionCommand;
-import com.wecombft.application.command.purchase.PurchaseCreateCommand;
-import com.wecombft.application.command.purchase.PurchaseInputInvoiceCommand;
-import com.wecombft.application.command.purchase.PurchaseReceiveCommand;
+import com.wecombft.application.CreationResult;
+import com.wecombft.interfaces.dto.purchase.ApprovalActionRequest;
+import com.wecombft.interfaces.dto.purchase.PurchaseCreateRequest;
+import com.wecombft.interfaces.dto.purchase.PurchaseInputInvoiceRequest;
+import com.wecombft.interfaces.dto.purchase.PurchaseReceiveRequest;
 import com.wecombft.interfaces.dto.purchase.PurchasePage;
 import com.wecombft.interfaces.dto.purchase.PurchaseReceiptResponse;
 import com.wecombft.interfaces.dto.purchase.PurchaseResponse;
@@ -37,12 +37,12 @@ public class PurchaseAdminController {
     @RequirePermission("purchase:order:write")
     public ResponseEntity<ApiResponse<PurchaseResponse>> createPurchase(
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody PurchaseCreateCommand command
+        @RequestBody PurchaseCreateRequest command
     ) {
         CreationResult<PurchaseResponse> result = purchaseApplicationService.createPurchase(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
-            command);
+            command == null ? null : command.toCommand());
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status)
             .body(result.created()
@@ -77,13 +77,13 @@ public class PurchaseAdminController {
     public ResponseEntity<ApiResponse<PurchaseReceiptResponse>> receive(
         @PathVariable("purchase_id") long purchaseId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody PurchaseReceiveCommand command
+        @RequestBody PurchaseReceiveRequest command
     ) {
         CreationResult<PurchaseReceiptResponse> result = purchaseApplicationService.receivePurchase(
             AdminPrincipalContext.currentOrNull(),
             purchaseId,
             idempotencyKey,
-            command);
+            command == null ? null : command.toCommand());
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status)
             .body(result.created()
@@ -96,14 +96,14 @@ public class PurchaseAdminController {
     public ResponseEntity<ApiResponse<PurchaseResponse>> inputInvoice(
         @PathVariable("purchase_id") long purchaseId,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody PurchaseInputInvoiceCommand command
+        @RequestBody PurchaseInputInvoiceRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
             purchaseApplicationService.backfillInputInvoice(
                 AdminPrincipalContext.currentOrNull(),
                 purchaseId,
                 idempotencyKey,
-                command),
+                command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -111,10 +111,10 @@ public class PurchaseAdminController {
     @RequirePermission("purchase:approval:approve")
     public ResponseEntity<ApiResponse<PurchaseResponse>> approvalAction(
         @PathVariable("approval_id") long approvalId,
-        @RequestBody ApprovalActionCommand command
+        @RequestBody ApprovalActionRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            purchaseApplicationService.approvePurchase(AdminPrincipalContext.currentOrNull(), approvalId, command),
+            purchaseApplicationService.approvePurchase(AdminPrincipalContext.currentOrNull(), approvalId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

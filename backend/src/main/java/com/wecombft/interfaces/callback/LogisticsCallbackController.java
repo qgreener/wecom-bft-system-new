@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.fulfillment.FulfillmentApplicationService;
-import com.wecombft.application.command.fulfillment.LogisticsTraceCommand;
+import com.wecombft.interfaces.dto.fulfillment.LogisticsTraceRequest;
 import com.wecombft.interfaces.dto.fulfillment.LogisticsCallbackResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
@@ -22,8 +22,8 @@ public class LogisticsCallbackController {
     }
 
     @PostMapping("/api/callbacks/logistics/traces")
-    public ResponseEntity<ApiResponse<LogisticsCallbackResponse>> trace(@RequestBody LogisticsTraceCommand command) {
-        LogisticsCallbackResponse response = fulfillmentApplicationService.handleLogisticsCallback(command);
+    public ResponseEntity<ApiResponse<LogisticsCallbackResponse>> trace(@RequestBody LogisticsTraceRequest command) {
+        LogisticsCallbackResponse response = fulfillmentApplicationService.handleLogisticsCallback(command == null ? null : command.toCommand());
         HttpStatus status = "FAILED".equals(response.processingStatus()) ? HttpStatus.ACCEPTED : HttpStatus.OK;
         return ResponseEntity.status(status).body(ApiResponse.ok(response, TraceIds.currentOrCreate()));
     }

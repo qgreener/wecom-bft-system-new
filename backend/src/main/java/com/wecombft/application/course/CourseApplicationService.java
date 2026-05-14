@@ -14,12 +14,33 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.application.student.AppStudentApplicationService;
-import com.wecombft.application.student.AppStudentApplicationService.StudentSession;
+import com.wecombft.application.student.StudentSession;
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.course.CourseApprovalActionCommand;
+import com.wecombft.application.command.course.CourseApprovalCommand;
+import com.wecombft.application.command.course.CourseSaveCommand;
+import com.wecombft.application.command.course.CourseSpecCommand;
+import com.wecombft.application.command.course.LessonNodeCommand;
+import com.wecombft.interfaces.dto.course.AppCourseListItem;
+import com.wecombft.interfaces.dto.course.AppCoursePage;
+import com.wecombft.interfaces.dto.course.CourseApprovalActionResponse;
+import com.wecombft.interfaces.dto.course.CourseApprovalResponse;
+import com.wecombft.interfaces.dto.course.CourseDetailResponse;
+import com.wecombft.interfaces.dto.course.CourseListItem;
+import com.wecombft.interfaces.dto.course.CoursePage;
+import com.wecombft.interfaces.dto.course.CourseSaveResponse;
+import com.wecombft.interfaces.dto.course.CourseSpecItem;
+import com.wecombft.interfaces.dto.course.CourseSpecResponse;
+import com.wecombft.interfaces.dto.course.CourseSpecsResponse;
+import com.wecombft.interfaces.dto.course.EntitlementItem;
+import com.wecombft.interfaces.dto.course.EntitlementLessonsResponse;
+import com.wecombft.interfaces.dto.course.EntitlementPage;
+import com.wecombft.interfaces.dto.course.LessonNodeItem;
+import com.wecombft.interfaces.dto.course.LessonNodeResponse;
 @Service
 public class CourseApplicationService {
 
@@ -797,214 +818,24 @@ public class CourseApplicationService {
     private record EntitlementRow(long id, long studentId, long courseId, String status) {
     }
 
-    public record CourseSaveCommand(
-        String courseTitle,
-        String courseType,
-        String coverUrl,
-        String summary,
-        String detail,
-        Long teacherUserId,
-        String categoryCode,
-        String courseGroupQr,
-        Long defaultTaxRuleId,
-        LocalDateTime saleStartAt,
-        LocalDateTime saleEndAt
-    ) {
-    }
 
-    public record CourseSaveResponse(long courseId, String courseNo, String status, LocalDateTime updatedAt) {
-    }
 
-    public record CourseSpecCommand(
-        String specName,
-        long salePriceCent,
-        Long originPriceCent,
-        String stockMode,
-        boolean containsPhysical,
-        Long skuId,
-        Long giftSkuId,
-        Long taxRuleId,
-        String amountSplitSnapshot,
-        String status,
-        int sortNo
-    ) {
-    }
 
-    public record CourseSpecResponse(
-        long specId,
-        String specNo,
-        long courseId,
-        String specName,
-        long salePriceCent,
-        String status,
-        boolean containsPhysical
-    ) {
-    }
 
-    public record LessonNodeCommand(
-        Long parentNodeId,
-        String nodeType,
-        String title,
-        String lessonType,
-        LocalDateTime liveStartAt,
-        LocalDateTime liveEndAt,
-        String replayUrl,
-        String resourceFile,
-        String status,
-        int sortNo,
-        boolean remindEnabled
-    ) {
-    }
 
-    public record LessonNodeResponse(
-        long nodeId,
-        long courseId,
-        Long parentNodeId,
-        String nodeType,
-        String title,
-        String lessonType,
-        String status,
-        int sortNo
-    ) {
-    }
 
-    public record CourseApprovalCommand(String approvalType, String submitReason, LocalDateTime deleteNoticeDeadline) {
-    }
 
-    public record CourseApprovalResponse(
-        long approvalId,
-        String approvalNo,
-        long courseId,
-        String approvalType,
-        String status,
-        String courseStatus
-    ) {
-    }
 
-    public record CourseApprovalActionCommand(String action, String approvalComment) {
-    }
 
-    public record CourseApprovalActionResponse(
-        long approvalId,
-        long courseId,
-        String approvalType,
-        String status,
-        String courseStatus
-    ) {
-    }
 
-    public record CoursePage(List<CourseListItem> records, int pageNo, int pageSize, int total) {
-    }
 
-    public record CourseListItem(
-        long courseId,
-        String courseNo,
-        String courseTitle,
-        String courseType,
-        Long teacherUserId,
-        String categoryCode,
-        Long defaultTaxRuleId,
-        String status,
-        LocalDateTime publishedAt,
-        Long minSalePriceCent
-    ) {
-    }
 
-    public record AppCoursePage(List<AppCourseListItem> records, int pageNo, int pageSize, int total) {
-    }
 
-    public record AppCourseListItem(
-        long courseId,
-        String courseNo,
-        String courseTitle,
-        String coverUrl,
-        String summary,
-        String courseType,
-        LocalDateTime saleStartAt,
-        LocalDateTime saleEndAt,
-        long minSalePriceCent,
-        String status
-    ) {
-    }
 
-    public record CourseDetailResponse(
-        long courseId,
-        String courseNo,
-        String courseTitle,
-        String courseType,
-        String coverUrl,
-        String summary,
-        String detail,
-        Long teacherUserId,
-        String categoryCode,
-        String courseGroupQr,
-        Long defaultTaxRuleId,
-        String status,
-        List<CourseSpecItem> specs,
-        List<LessonNodeItem> lessonSummary
-    ) {
-    }
 
-    public record CourseSpecsResponse(long courseId, List<CourseSpecItem> specs) {
-    }
 
-    public record CourseSpecItem(
-        long specId,
-        String specNo,
-        long courseId,
-        String specName,
-        long salePriceCent,
-        Long originPriceCent,
-        String stockMode,
-        boolean containsPhysical,
-        Long skuId,
-        Long giftSkuId,
-        Long taxRuleId,
-        String amountSplitSnapshot,
-        String status,
-        int sortNo
-    ) {
-    }
 
-    public record LessonNodeItem(
-        long nodeId,
-        long courseId,
-        Long parentNodeId,
-        String nodeType,
-        String title,
-        String lessonType,
-        LocalDateTime liveStartAt,
-        LocalDateTime liveEndAt,
-        String replayUrl,
-        String resourceFile,
-        String status,
-        int sortNo
-    ) {
-    }
 
-    public record EntitlementPage(List<EntitlementItem> records, int pageNo, int pageSize, int total) {
-    }
 
-    public record EntitlementItem(
-        long entitlementId,
-        String entitlementNo,
-        long orderId,
-        String orderNo,
-        long courseId,
-        long specId,
-        String status,
-        LocalDateTime openedAt,
-        LocalDateTime expireAt,
-        boolean remindStopped,
-        String courseSnapshot
-    ) {
-    }
 
-    public record EntitlementLessonsResponse(
-        long entitlementId,
-        long courseId,
-        String courseGroupQr,
-        List<LessonNodeItem> nodes
-    ) {
-    }
 }

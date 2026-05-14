@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.trade.OrderPaymentApplicationService;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderDetailResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderPage;
+import com.wecombft.interfaces.dto.trade.OrderDetailResponse;
+import com.wecombft.interfaces.dto.trade.OrderPage;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.shared.trace.TraceIds;

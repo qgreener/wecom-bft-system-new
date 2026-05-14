@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.system.SystemConfigService;
-import com.wecombft.application.system.SystemConfigService.ConfigGroupResponse;
-import com.wecombft.application.system.SystemConfigService.SaveConfigCommand;
-import com.wecombft.application.system.SystemConfigService.SaveConfigResponse;
+import com.wecombft.interfaces.dto.system.ConfigGroupResponse;
+import com.wecombft.interfaces.dto.system.SaveConfigRequest;
+import com.wecombft.interfaces.dto.system.SaveConfigResponse;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
@@ -41,10 +41,10 @@ public class SystemConfigController {
     @RequirePermission("system:config:write")
     public ResponseEntity<ApiResponse<SaveConfigResponse>> save(
         @RequestHeader("Authorization") String authorization,
-        @RequestBody SaveConfigCommand command
+        @RequestBody SaveConfigRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            systemConfigService.save(authorization, command),
+            systemConfigService.save(authorization, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

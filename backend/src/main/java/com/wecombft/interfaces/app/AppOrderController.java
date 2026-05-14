@@ -11,18 +11,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.trade.OrderPaymentApplicationService;
-import com.wecombft.application.trade.OrderPaymentApplicationService.CancelOrderCommand;
-import com.wecombft.application.trade.OrderPaymentApplicationService.MockPayCommand;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderCloseResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderConfirmCommand;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderConfirmResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderCreateCommand;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderCreateResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderDetailResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.OrderPage;
-import com.wecombft.application.trade.OrderPaymentApplicationService.PayCommand;
-import com.wecombft.application.trade.OrderPaymentApplicationService.PaymentCallbackResponse;
-import com.wecombft.application.trade.OrderPaymentApplicationService.PaymentPrepareResponse;
+import com.wecombft.interfaces.dto.trade.CancelOrderRequest;
+import com.wecombft.interfaces.dto.trade.MockPayRequest;
+import com.wecombft.interfaces.dto.trade.OrderCloseResponse;
+import com.wecombft.interfaces.dto.trade.OrderConfirmRequest;
+import com.wecombft.interfaces.dto.trade.OrderConfirmResponse;
+import com.wecombft.interfaces.dto.trade.OrderCreateRequest;
+import com.wecombft.interfaces.dto.trade.OrderCreateResponse;
+import com.wecombft.interfaces.dto.trade.OrderDetailResponse;
+import com.wecombft.interfaces.dto.trade.OrderPage;
+import com.wecombft.interfaces.dto.trade.PayRequest;
+import com.wecombft.interfaces.dto.trade.PaymentCallbackResponse;
+import com.wecombft.interfaces.dto.trade.PaymentPrepareResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -38,10 +38,10 @@ public class AppOrderController {
     @PostMapping("/api/app/orders/confirm")
     public ResponseEntity<ApiResponse<OrderConfirmResponse>> confirm(
         @RequestHeader("Authorization") String authorization,
-        @RequestBody OrderConfirmCommand command
+        @RequestBody OrderConfirmRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            orderPaymentApplicationService.confirm(authorization, command),
+            orderPaymentApplicationService.confirm(authorization, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -49,10 +49,10 @@ public class AppOrderController {
     public ResponseEntity<ApiResponse<OrderCreateResponse>> create(
         @RequestHeader("Authorization") String authorization,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody OrderCreateCommand command
+        @RequestBody OrderCreateRequest command
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(
-            orderPaymentApplicationService.create(authorization, idempotencyKey, command),
+            orderPaymentApplicationService.create(authorization, idempotencyKey, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -60,10 +60,10 @@ public class AppOrderController {
     public ResponseEntity<ApiResponse<PaymentPrepareResponse>> pay(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("order_id") long orderId,
-        @RequestBody PayCommand command
+        @RequestBody PayRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            orderPaymentApplicationService.preparePayment(authorization, orderId, command),
+            orderPaymentApplicationService.preparePayment(authorization, orderId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -71,10 +71,10 @@ public class AppOrderController {
     public ResponseEntity<ApiResponse<OrderCloseResponse>> cancel(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("order_id") long orderId,
-        @RequestBody CancelOrderCommand command
+        @RequestBody CancelOrderRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            orderPaymentApplicationService.cancel(authorization, orderId, command),
+            orderPaymentApplicationService.cancel(authorization, orderId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
@@ -82,10 +82,10 @@ public class AppOrderController {
     public ResponseEntity<ApiResponse<PaymentCallbackResponse>> mockPay(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("order_id") long orderId,
-        @RequestBody MockPayCommand command
+        @RequestBody MockPayRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            orderPaymentApplicationService.mockPay(authorization, orderId, command),
+            orderPaymentApplicationService.mockPay(authorization, orderId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 

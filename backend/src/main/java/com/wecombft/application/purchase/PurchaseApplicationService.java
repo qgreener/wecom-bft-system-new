@@ -37,6 +37,7 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.CreationResult;
 @Service
 public class PurchaseApplicationService {
 
@@ -978,8 +979,6 @@ public class PurchaseApplicationService {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    public record CreationResult<T>(T response, boolean created) {
-    }
 
     private record SkuStock(long skuId, String skuNo, String skuName, String status, int currentStock, int availableStock) {
     }

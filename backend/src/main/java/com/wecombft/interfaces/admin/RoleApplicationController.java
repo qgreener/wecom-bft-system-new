@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.iam.RoleApplicationService;
-import com.wecombft.application.iam.RoleApplicationService.ApprovalActionCommand;
-import com.wecombft.application.iam.RoleApplicationService.ApprovalResponse;
-import com.wecombft.application.iam.RoleApplicationService.RoleApplicationCommand;
+import com.wecombft.interfaces.dto.iam.ApprovalActionRequest;
+import com.wecombft.interfaces.dto.iam.ApprovalResponse;
+import com.wecombft.interfaces.dto.iam.RoleApplicationRequest;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
@@ -31,9 +31,9 @@ public class RoleApplicationController {
     public ResponseEntity<ApiResponse<ApprovalResponse>> submit(
         @RequestHeader("Authorization") String authorization,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
-        @RequestBody RoleApplicationCommand command
+        @RequestBody RoleApplicationRequest command
     ) {
-        ApprovalResponse response = roleApplicationService.submit(authorization, idempotencyKey, command);
+        ApprovalResponse response = roleApplicationService.submit(authorization, idempotencyKey, command == null ? null : command.toCommand());
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.created(response, TraceIds.currentOrCreate()));
     }
@@ -43,10 +43,10 @@ public class RoleApplicationController {
     public ResponseEntity<ApiResponse<ApprovalResponse>> action(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("approval_id") long approvalId,
-        @RequestBody ApprovalActionCommand command
+        @RequestBody ApprovalActionRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            roleApplicationService.action(authorization, approvalId, command),
+            roleApplicationService.action(authorization, approvalId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

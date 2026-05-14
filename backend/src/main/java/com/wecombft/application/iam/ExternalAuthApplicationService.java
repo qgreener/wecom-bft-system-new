@@ -8,6 +8,10 @@ import com.wecombft.infrastructure.persistence.iam.AuthBoundaryRepository.AppStu
 import com.wecombft.infrastructure.persistence.iam.AuthBoundaryRepository.SupplierAuthRecord;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.iam.AppWechatLoginCommand;
+import com.wecombft.application.command.iam.SupplierH5TokenCommand;
+import com.wecombft.interfaces.dto.iam.AppWechatLoginResponse;
+import com.wecombft.interfaces.dto.iam.SupplierH5TokenResponse;
 @Service
 public class ExternalAuthApplicationService {
 
@@ -44,24 +48,7 @@ public class ExternalAuthApplicationService {
             "S3-SUPPLIER-DEMO-" + supplier.supplierNo());
     }
 
-    public record AppWechatLoginCommand(String wxCode, String sourceChannel) {
-    }
 
-    public record AppWechatLoginResponse(
-        String userNo,
-        String studentNo,
-        String accessToken,
-        boolean mobileBound
-    ) {
-    }
 
-    public record SupplierH5TokenCommand(String accessToken, String supplierNo) {
-    }
 
-    public record SupplierH5TokenResponse(
-        String supplierNo,
-        String supplierName,
-        String sessionToken
-    ) {
-    }
 }

@@ -12,6 +12,12 @@ import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.student.AppWechatLoginCommand;
+import com.wecombft.application.command.student.PhoneAuthorizeCommand;
+import com.wecombft.interfaces.dto.student.AppWechatLoginResponse;
+import com.wecombft.interfaces.dto.student.PhoneAuthorizeResponse;
+import com.wecombft.interfaces.dto.student.StudentMeResponse;
+import com.wecombft.interfaces.dto.student.TradePrecheckResponse;
 @Service
 public class AppStudentApplicationService {
 
@@ -396,60 +402,10 @@ public class AppStudentApplicationService {
             rs.getString("user_status"));
     }
 
-    public record AppWechatLoginCommand(String wxCode, String sourceChannel) {
-    }
 
-    public record AppWechatLoginResponse(
-        String userNo,
-        long studentId,
-        String studentNo,
-        String accessToken,
-        boolean mobileBound,
-        String mobile,
-        int expiresIn,
-        OffsetDateTime expireAt
-    ) {
-    }
 
-    public record PhoneAuthorizeCommand(String phoneCode) {
-    }
 
-    public record PhoneAuthorizeResponse(
-        long studentId,
-        String studentNo,
-        String mobile,
-        String mergedFromStudentNo,
-        String status,
-        boolean mobileBound
-    ) {
-    }
 
-    public record TradePrecheckResponse(long studentId, String studentNo, boolean mobileBound) {
-    }
 
-    public record StudentMeResponse(
-        long studentId,
-        String studentNo,
-        long userId,
-        String mobile,
-        String nickname,
-        String status,
-        Long mergedToStudentId
-    ) {
-    }
 
-    public record StudentSession(
-        long studentId,
-        String studentNo,
-        long userId,
-        String userNo,
-        String mobile,
-        String nickname,
-        String wxOpenid,
-        String wxUnionid,
-        String status,
-        Long mergedToStudentId,
-        String userStatus
-    ) {
-    }
 }

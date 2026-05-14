@@ -25,9 +25,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.application.learning.LearningEntitlementService;
-import com.wecombft.application.learning.LearningEntitlementService.RefundEntitlementCommand;
+import com.wecombft.application.command.learning.RefundEntitlementCommand;
 import com.wecombft.application.student.AppStudentApplicationService;
-import com.wecombft.application.student.AppStudentApplicationService.StudentSession;
+import com.wecombft.application.student.StudentSession;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRecord;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRepository;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRepository.CallbackEventCommand;
@@ -37,6 +37,40 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.CreationResult;
+import com.wecombft.application.command.finance.AccountingMaterialCloseCommand;
+import com.wecombft.application.command.finance.AccountingMaterialConfirmCommand;
+import com.wecombft.application.command.finance.AccountingMaterialCreateCommand;
+import com.wecombft.application.command.finance.AccountingMaterialUploadCommand;
+import com.wecombft.application.command.finance.CompensationRetryCommand;
+import com.wecombft.application.command.finance.InvoiceApplyCommand;
+import com.wecombft.application.command.finance.InvoiceIssueCallbackCommand;
+import com.wecombft.application.command.finance.InvoiceIssueCommand;
+import com.wecombft.application.command.finance.InvoiceRedReverseCallbackCommand;
+import com.wecombft.application.command.finance.InvoiceRedReverseCommand;
+import com.wecombft.application.command.finance.InvoiceTitleCommand;
+import com.wecombft.application.command.finance.ReconciliationImportCommand;
+import com.wecombft.application.command.finance.ReconciliationRecordCommand;
+import com.wecombft.application.command.finance.RefundApplyCommand;
+import com.wecombft.application.command.finance.RefundApproveCommand;
+import com.wecombft.application.command.finance.RefundCallbackCommand;
+import com.wecombft.application.command.finance.RefundManualCompleteCommand;
+import com.wecombft.application.command.finance.RefundRejectCommand;
+import com.wecombft.interfaces.dto.finance.AccountingMaterialDownloadResponse;
+import com.wecombft.interfaces.dto.finance.AccountingMaterialResponse;
+import com.wecombft.interfaces.dto.finance.AccountingWorkbenchSummaryResponse;
+import com.wecombft.interfaces.dto.finance.CompensationRetryResponse;
+import com.wecombft.interfaces.dto.finance.InvoiceCallbackResponse;
+import com.wecombft.interfaces.dto.finance.InvoicePage;
+import com.wecombft.interfaces.dto.finance.InvoiceResponse;
+import com.wecombft.interfaces.dto.finance.InvoiceTitlePage;
+import com.wecombft.interfaces.dto.finance.InvoiceTitleResponse;
+import com.wecombft.interfaces.dto.finance.ReconciliationBatchPage;
+import com.wecombft.interfaces.dto.finance.ReconciliationBatchResponse;
+import com.wecombft.interfaces.dto.finance.ReconciliationRecordResponse;
+import com.wecombft.interfaces.dto.finance.RefundCallbackResponse;
+import com.wecombft.interfaces.dto.finance.RefundPage;
+import com.wecombft.interfaces.dto.finance.RefundResponse;
 @Service
 public class AfterSalesFinanceApplicationService {
 
@@ -1961,107 +1995,39 @@ public class AfterSalesFinanceApplicationService {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    public record CreationResult<T>(T response, boolean created) {
-    }
 
-    public record RefundApplyCommand(Long orderId, Long applyAmountCent, String refundReason, String applyDescription, String entitlementAction) {
-    }
 
-    public record RefundRejectCommand(String rejectReason) {
-    }
 
-    public record RefundApproveCommand(Long approvedAmountCent, String refundChannel, String reviewComment, String entitlementAction) {
-    }
 
-    public record RefundManualCompleteCommand(String refundChannel, String manualVoucherNo, String manualVoucherFile, LocalDateTime refundedAt, String entitlementAction, String remark) {
-    }
 
-    public record RefundCallbackCommand(String eventNo, String refundNo, String externalRefundNo, String refundStatus, Long refundedAmountCent, LocalDateTime refundedAt, String failureReason, Map<String, Object> rawSnapshot) {
-    }
 
-    public record InvoiceTitleCommand(String titleType, String titleName, String taxNo, String email, Boolean isDefault) {
-    }
 
-    public record InvoiceApplyCommand(Long orderId, Long titleId, String email) {
-    }
 
-    public record InvoiceIssueCommand(String invoiceNo, String invoiceFile, LocalDateTime issuedAt, String remark) {
-    }
 
-    public record InvoiceRedReverseCommand(String redInvoiceNo, String redInvoiceFile, LocalDateTime redReversedAt, String remark) {
-    }
 
-    public record InvoiceIssueCallbackCommand(String eventNo, String invoiceApplyNo, String status, String invoiceNo, String invoiceFile, LocalDateTime issuedAt, String failureReason, Map<String, Object> rawSnapshot) {
-    }
 
-    public record InvoiceRedReverseCallbackCommand(String eventNo, String invoiceApplyNo, String status, String redInvoiceNo, String redInvoiceFile, LocalDateTime redReversedAt, String failureReason, Map<String, Object> rawSnapshot) {
-    }
 
-    public record ReconciliationImportCommand(String billMonth, String billSource, String fileName, String fileDigest, List<ReconciliationRecordCommand> records) {
-    }
 
-    public record ReconciliationRecordCommand(String recordType, String merchantOrderNo, String externalTransactionNo, Long billAmountCent, Long feeAmountCent) {
-    }
 
-    public record AccountingMaterialCreateCommand(String materialType, String relatedMonth, Long orderId, String relatedObjectType, Long relatedObjectId, String purpose, LocalDateTime dueAt) {
-    }
 
-    public record AccountingMaterialUploadCommand(List<String> fileRefs, String remark) {
-    }
 
-    public record AccountingMaterialConfirmCommand(String remark) {
-    }
 
-    public record AccountingMaterialCloseCommand(String closedReason) {
-    }
 
-    public record CompensationRetryCommand(String compensationType, String action, String remark) {
-    }
 
-    public record RefundResponse(long refundId, String refundNo, long orderId, String orderNo, long applyAmountCent, Long approvedAmountCent, String status, String refundChannel, String externalRefundNo, String manualVoucherNo, String manualVoucherFile, String failureReason, String entitlementAction, LocalDateTime refundedAt) {
-    }
 
-    public record RefundPage(List<RefundResponse> records) {
-    }
 
-    public record RefundCallbackResponse(String processingStatus, Long refundId, String refundNo, String status, String failureReason) {
-    }
 
-    public record InvoiceTitleResponse(long titleId, String titleType, String titleName, String taxNo, String email, boolean isDefault, String status) {
-    }
 
-    public record InvoiceTitlePage(List<InvoiceTitleResponse> records) {
-    }
 
-    public record InvoiceResponse(long invoiceId, String invoiceApplyNo, long orderId, String orderNo, long invoiceAmountCent, String status, String invoiceChannel, String invoiceNo, String invoiceFile, LocalDateTime issuedAt, Long sourceRefundId, String redInvoiceNo, String redInvoiceFile, LocalDateTime redReversedAt, String failureReason) {
-    }
 
-    public record InvoicePage(List<InvoiceResponse> records) {
-    }
 
-    public record InvoiceCallbackResponse(String processingStatus, Long invoiceId, String invoiceApplyNo, String status, String failureReason) {
-    }
 
-    public record ReconciliationBatchResponse(long batchId, String batchNo, String billMonth, String billSource, String fileName, String importStatus, int totalCount, int matchedCount, int diffCount, List<ReconciliationRecordResponse> records) {
-    }
 
-    public record ReconciliationBatchPage(List<ReconciliationBatchResponse> records) {
-    }
 
-    public record ReconciliationRecordResponse(long recordId, long batchId, String recordType, Long orderId, String orderNo, Long paymentId, Long refundId, String merchantOrderNo, String externalTransactionNo, Long systemAmountCent, Long billAmountCent, Long feeAmountCent, String result, String differenceReason) {
-    }
 
-    public record AccountingMaterialResponse(long materialId, String materialNo, String materialType, String status, String relatedMonth, Long orderId, String orderNo, String relatedObjectType, Long relatedObjectId, String purpose, List<String> fileRefs, LocalDateTime dueAt, LocalDateTime uploadedAt, LocalDateTime confirmedAt) {
-    }
 
-    public record AccountingMaterialDownloadResponse(long materialId, String materialNo, String fileNo, boolean downloadAllowed, String downloadReason) {
-    }
 
-    public record AccountingWorkbenchSummaryResponse(String relatedMonth, long incomeAmountCent, long refundAmountCent, long purchaseAmountCent, long issuedInvoiceAmountCent, long redReversedInvoiceAmountCent, int reconciliationDiffCount, Map<String, Integer> materialStatusCounts) {
-    }
 
-    public record CompensationRetryResponse(long compensationId, String relatedObjectType, String processingStatus, String message) {
-    }
 
     private record OrderRow(long id, String orderNo, String merchantOrderNo, long studentId, long userId, long totalAmountCent, long payableAmountCent, Long paidAmountCent, String taxSnapshotJson, String paymentStatus, String fulfillmentStatus, String refundStatus, String invoiceStatus, LocalDateTime paidAt) {
     }

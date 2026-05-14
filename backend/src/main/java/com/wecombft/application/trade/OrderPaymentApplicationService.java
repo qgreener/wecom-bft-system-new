@@ -27,12 +27,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.application.crm.LeadApplicationService;
-import com.wecombft.application.crm.LeadApplicationService.LeadPaidConversionCommand;
+import com.wecombft.application.command.crm.LeadPaidConversionCommand;
 import com.wecombft.application.learning.LearningEntitlementService;
-import com.wecombft.application.learning.LearningEntitlementService.EntitlementEventResult;
-import com.wecombft.application.learning.LearningEntitlementService.PaymentSuccessEntitlementCommand;
+import com.wecombft.application.learning.EntitlementEventResult;
+import com.wecombft.application.command.learning.PaymentSuccessEntitlementCommand;
 import com.wecombft.application.student.AppStudentApplicationService;
-import com.wecombft.application.student.AppStudentApplicationService.StudentSession;
+import com.wecombft.application.student.StudentSession;
 import com.wecombft.domain.model.MoneyCent;
 import com.wecombft.domain.service.finance.TaxAmountCalculator;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRecord;
@@ -45,6 +45,27 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.trade.CancelOrderCommand;
+import com.wecombft.application.command.trade.MockPayCommand;
+import com.wecombft.application.command.trade.OrderConfirmCommand;
+import com.wecombft.application.command.trade.OrderCreateCommand;
+import com.wecombft.application.command.trade.PayCommand;
+import com.wecombft.application.command.trade.PaymentCallbackCommand;
+import com.wecombft.interfaces.dto.trade.AuditLogSummary;
+import com.wecombft.interfaces.dto.trade.DocumentLinkResponse;
+import com.wecombft.interfaces.dto.trade.EntitlementResponse;
+import com.wecombft.interfaces.dto.trade.NotificationResponse;
+import com.wecombft.interfaces.dto.trade.OrderCloseResponse;
+import com.wecombft.interfaces.dto.trade.OrderConfirmResponse;
+import com.wecombft.interfaces.dto.trade.OrderCreateResponse;
+import com.wecombft.interfaces.dto.trade.OrderDetailResponse;
+import com.wecombft.interfaces.dto.trade.OrderItemResponse;
+import com.wecombft.interfaces.dto.trade.OrderListItem;
+import com.wecombft.interfaces.dto.trade.OrderPage;
+import com.wecombft.interfaces.dto.trade.PaymentCallbackResponse;
+import com.wecombft.interfaces.dto.trade.PaymentPrepareResponse;
+import com.wecombft.interfaces.dto.trade.PaymentRecordResponse;
+import com.wecombft.interfaces.dto.trade.ShipmentResponse;
 @Service
 public class OrderPaymentApplicationService {
 
@@ -1650,257 +1671,26 @@ public class OrderPaymentApplicationService {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    public record OrderConfirmCommand(Long courseId, Long specId, Integer quantity, Long addressId, String sourceChannel, String sourceCode) {
-    }
 
-    public record OrderCreateCommand(
-        Long courseId,
-        Long specId,
-        Integer quantity,
-        Long addressId,
-        String clientRequestNo,
-        String sourceChannel,
-        String sourceCode,
-        Long confirmedPayableAmountCent,
-        String confirmToken
-    ) {
-        private OrderConfirmCommand toConfirmCommand() {
-            return new OrderConfirmCommand(courseId, specId, quantity, addressId, sourceChannel, sourceCode);
-        }
-    }
 
-    public record PayCommand(String paymentChannel) {
-    }
 
-    public record CancelOrderCommand(String closeReason) {
-    }
 
-    public record MockPayCommand(
-        String eventNo,
-        String externalPaymentNo,
-        Long paidAmountCent,
-        String paymentResult,
-        LocalDateTime paidAt,
-        Map<String, Object> rawSnapshot
-    ) {
-    }
 
-    public record PaymentCallbackCommand(
-        String eventNo,
-        String merchantOrderNo,
-        String externalPaymentNo,
-        Long paidAmountCent,
-        String paymentResult,
-        LocalDateTime paidAt,
-        Map<String, Object> rawSnapshot
-    ) {
-    }
 
-    public record OrderConfirmResponse(
-        Map<String, Object> courseSnapshot,
-        Map<String, Object> priceSnapshot,
-        Map<String, Object> taxSnapshot,
-        Map<String, Object> receiverSnapshot,
-        long totalAmountCent,
-        long discountAmountCent,
-        long payableAmountCent,
-        boolean containsPhysical,
-        boolean stockWarning,
-        String confirmToken,
-        LocalDateTime serverTime
-    ) {
-    }
 
-    public record OrderCreateResponse(
-        long orderId,
-        String orderNo,
-        String merchantOrderNo,
-        String paymentStatus,
-        String fulfillmentStatus,
-        String refundStatus,
-        String invoiceStatus,
-        long payableAmountCent,
-        LocalDateTime paymentExpireAt,
-        LocalDateTime serverTime
-    ) {
-    }
 
-    public record PaymentPrepareResponse(
-        long orderId,
-        String orderNo,
-        String merchantOrderNo,
-        Map<String, Object> paymentParams,
-        LocalDateTime paymentExpireAt,
-        LocalDateTime serverTime
-    ) {
-    }
 
-    public record OrderCloseResponse(long orderId, String orderNo, String paymentStatus, LocalDateTime closedAt, String closeReason) {
-    }
 
-    public record PaymentCallbackResponse(
-        String processingStatus,
-        Long orderId,
-        Long paymentId,
-        String paymentNo,
-        String paymentStatus,
-        String idempotencyKey,
-        String failureReason
-    ) {
-    }
 
-    public record OrderPage(List<OrderListItem> records, int pageNo, int pageSize, int total) {
-    }
 
-    public record OrderListItem(
-        long orderId,
-        String orderNo,
-        String merchantOrderNo,
-        long studentId,
-        long userId,
-        Long leadId,
-        Map<String, Object> courseSnapshot,
-        Long paidAmountCent,
-        long payableAmountCent,
-        String paymentStatus,
-        String fulfillmentStatus,
-        String refundStatus,
-        String invoiceStatus,
-        LocalDateTime paymentExpireAt,
-        LocalDateTime serverTime,
-        LocalDateTime createdAt
-    ) {
-    }
 
-    public record OrderDetailResponse(
-        long orderId,
-        String orderNo,
-        String merchantOrderNo,
-        long studentId,
-        long userId,
-        Long leadId,
-        List<OrderItemResponse> items,
-        Map<String, Object> courseSnapshot,
-        Map<String, Object> priceSnapshot,
-        Map<String, Object> taxSnapshot,
-        Map<String, Object> receiverSnapshot,
-        long totalAmountCent,
-        long discountAmountCent,
-        long payableAmountCent,
-        Long paidAmountCent,
-        String paymentStatus,
-        String fulfillmentStatus,
-        String refundStatus,
-        String invoiceStatus,
-        LocalDateTime paymentExpireAt,
-        LocalDateTime paidAt,
-        LocalDateTime closedAt,
-        String closeReason,
-        List<PaymentRecordResponse> paymentRecords,
-        List<EntitlementResponse> entitlements,
-        List<ShipmentResponse> shipments,
-        List<NotificationResponse> notifications,
-        List<DocumentLinkResponse> documentLinks,
-        List<AuditLogSummary> auditLogs
-    ) {
-    }
 
-    public record OrderItemResponse(
-        long orderItemId,
-        int lineNo,
-        long courseId,
-        long specId,
-        String itemName,
-        int quantity,
-        long unitPriceCent,
-        long totalAmountCent,
-        long discountAmountCent,
-        long payableAmountCent,
-        Long paidAmountCent,
-        boolean containsPhysical,
-        Long skuId,
-        Long giftSkuId,
-        Map<String, Object> courseSnapshot,
-        Map<String, Object> specSnapshot,
-        Map<String, Object> taxSnapshot
-    ) {
-    }
 
-    public record PaymentRecordResponse(
-        long paymentId,
-        String paymentNo,
-        String channel,
-        String paymentMethod,
-        String paymentResult,
-        long paidAmountCent,
-        String externalPaymentNo,
-        LocalDateTime paidAt,
-        String callbackEventNo,
-        String idempotencyKey,
-        String failureReason
-    ) {
-    }
 
-    public record EntitlementResponse(
-        long entitlementId,
-        String entitlementNo,
-        long courseId,
-        long specId,
-        String status,
-        LocalDateTime openedAt,
-        Map<String, Object> courseSnapshot
-    ) {
-    }
 
-    public record ShipmentResponse(
-        long shipmentId,
-        String shipmentNo,
-        String status,
-        Map<String, Object> receiverSnapshot,
-        boolean exceptionFlag,
-        String exceptionReason,
-        LocalDateTime createdAt
-    ) {
-    }
 
-    public record NotificationResponse(
-        long notificationId,
-        String notificationNo,
-        String channel,
-        String sceneCode,
-        String title,
-        String content,
-        String sendStatus,
-        String readStatus,
-        LocalDateTime sentAt
-    ) {
-    }
 
-    public record DocumentLinkResponse(
-        long documentLinkId,
-        String documentType,
-        long documentId,
-        String documentNo,
-        String documentStatus,
-        Long amountCent,
-        String relationType,
-        LocalDateTime occurredAt,
-        String sourceTable,
-        String remark
-    ) {
-    }
 
-    public record AuditLogSummary(
-        long auditId,
-        String operationModule,
-        String operationType,
-        String targetType,
-        String targetNo,
-        String result,
-        String failureReason,
-        LocalDateTime occurredAt
-    ) {
-    }
 
     private record OrderConfirmation(
         CourseSpecRow course,

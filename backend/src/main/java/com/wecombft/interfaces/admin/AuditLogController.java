@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.audit.AuditLogService;
-import com.wecombft.application.audit.AuditLogService.AuditPage;
+import com.wecombft.interfaces.dto.audit.AuditPage;
 import com.wecombft.infrastructure.persistence.audit.AuditLogRepository.AuditQuery;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.infrastructure.security.AdminSessionService;

@@ -16,6 +16,11 @@ import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.application.command.system.SaveConfigCommand;
+import com.wecombft.application.command.system.SaveConfigItem;
+import com.wecombft.interfaces.dto.system.ConfigGroupResponse;
+import com.wecombft.interfaces.dto.system.ConfigItemResponse;
+import com.wecombft.interfaces.dto.system.SaveConfigResponse;
 @Service
 public class SystemConfigService {
 
@@ -123,36 +128,8 @@ public class SystemConfigService {
         return value == null ? "" : value.trim();
     }
 
-    public record SaveConfigCommand(
-        String configGroup,
-        List<SaveConfigItem> configItems,
-        String changeReason
-    ) {
-    }
 
-    public record SaveConfigItem(String configKey, String configValue) {
-    }
 
-    public record ConfigGroupResponse(String configGroup, List<ConfigItemResponse> configItems) {
-    }
 
-    public record ConfigItemResponse(
-        String configKey,
-        String displayName,
-        String maskedValue,
-        boolean editableFlag,
-        LocalDateTime updatedAt,
-        Long updatedBy,
-        long version
-    ) {
-    }
 
-    public record SaveConfigResponse(
-        String configGroup,
-        List<String> updatedKeys,
-        long version,
-        LocalDateTime updatedAt,
-        long auditLogId
-    ) {
-    }
 }

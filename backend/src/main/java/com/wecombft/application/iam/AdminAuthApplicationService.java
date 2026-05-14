@@ -13,6 +13,12 @@ import com.wecombft.infrastructure.security.PermissionCatalog.FieldMaskPolicy;
 import com.wecombft.infrastructure.security.PermissionCatalog.MenuPolicy;
 import com.wecombft.shared.web.ApiException;
 
+import com.wecombft.interfaces.dto.iam.CurrentUserResponse;
+import com.wecombft.interfaces.dto.iam.DataScopeView;
+import com.wecombft.interfaces.dto.iam.FieldMaskView;
+import com.wecombft.interfaces.dto.iam.MenuView;
+import com.wecombft.interfaces.dto.iam.RoleView;
+import com.wecombft.interfaces.dto.iam.TestLoginResponse;
 @Service
 public class AdminAuthApplicationService {
 
@@ -71,36 +77,9 @@ public class AdminAuthApplicationService {
         return new FieldMaskView(policy.fieldCode(), policy.displayName(), policy.maskStrategy());
     }
 
-    public record TestLoginResponse(
-        String userNo,
-        String accessToken,
-        int expiresIn,
-        String tokenType,
-        OffsetDateTime expireAt
-    ) {
-    }
 
-    public record CurrentUserResponse(
-        long userId,
-        String userNo,
-        String displayName,
-        List<RoleView> roles,
-        List<String> permissionCodes,
-        DataScopeView dataScope,
-        List<MenuView> menus,
-        List<FieldMaskView> fieldMasks
-    ) {
-    }
 
-    public record RoleView(String roleCode, String roleName, String dataScope) {
-    }
 
-    public record DataScopeView(String scopeCode, String description) {
-    }
 
-    public record MenuView(String menuCode, String menuName, String parentCode, int sortNo) {
-    }
 
-    public record FieldMaskView(String fieldCode, String displayName, String maskStrategy) {
-    }
 }

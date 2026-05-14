@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.student.AppStudentApplicationService;
-import com.wecombft.application.student.AppStudentApplicationService.StudentMeResponse;
-import com.wecombft.application.student.AppStudentApplicationService.TradePrecheckResponse;
+import com.wecombft.interfaces.dto.student.StudentMeResponse;
+import com.wecombft.interfaces.dto.student.TradePrecheckResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 

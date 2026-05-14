@@ -20,8 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.wecombft.application.crm.LeadApplicationService;
-import com.wecombft.application.crm.LeadApplicationService.LeadPaidConversionCommand;
-import com.wecombft.application.crm.LeadApplicationService.LeadPaidConversionResponse;
+import com.wecombft.application.command.crm.LeadPaidConversionCommand;
+import com.wecombft.interfaces.dto.crm.LeadPaidConversionResponse;
 
 @SpringBootTest
 @AutoConfigureMockMvc

@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.wecombft.application.student.AppStudentApplicationService;
-import com.wecombft.application.student.AppStudentApplicationService.AppWechatLoginCommand;
-import com.wecombft.application.student.AppStudentApplicationService.AppWechatLoginResponse;
-import com.wecombft.application.student.AppStudentApplicationService.PhoneAuthorizeCommand;
-import com.wecombft.application.student.AppStudentApplicationService.PhoneAuthorizeResponse;
+import com.wecombft.interfaces.dto.student.AppWechatLoginRequest;
+import com.wecombft.interfaces.dto.student.AppWechatLoginResponse;
+import com.wecombft.interfaces.dto.student.PhoneAuthorizeRequest;
+import com.wecombft.interfaces.dto.student.PhoneAuthorizeResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -28,20 +28,20 @@ public class AppAuthController {
 
     @PostMapping("/wechat-login")
     public ResponseEntity<ApiResponse<AppWechatLoginResponse>> wechatLogin(
-        @RequestBody AppWechatLoginCommand command
+        @RequestBody AppWechatLoginRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            appStudentApplicationService.wechatLogin(command),
+            appStudentApplicationService.wechatLogin(command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/phone-authorize")
     public ResponseEntity<ApiResponse<PhoneAuthorizeResponse>> phoneAuthorize(
         @RequestHeader("Authorization") String authorization,
-        @RequestBody PhoneAuthorizeCommand command
+        @RequestBody PhoneAuthorizeRequest command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            appStudentApplicationService.authorizePhone(authorization, command),
+            appStudentApplicationService.authorizePhone(authorization, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }
