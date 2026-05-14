@@ -42,6 +42,7 @@ class FlywayMigrationTest {
                 "sys_user",
                 "sys_role",
                 "sys_user_role",
+                "sys_config",
                 "crm_lead",
                 "edu_student",
                 "student_address",
@@ -124,6 +125,42 @@ class FlywayMigrationTest {
                 "idx_doc_link_order_type_time",
                 "idx_doc_link_document");
         assertThat(existingIndexes("audit_operation_log")).contains("idx_audit_order", "idx_audit_target");
+        assertThat(existingIndexes("sys_config")).contains("uk_sys_config_group_key", "idx_sys_config_group");
+    }
+
+    @Test
+    void should_seed_s3_security_roles_users_and_masked_configs() {
+        Integer roleCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from sys_role
+                where role_code in ('SUPER_ADMIN', 'OPS', 'SERVICE', 'WAREHOUSE', 'ACCOUNTING')
+                """,
+                Integer.class);
+        Integer demoUserCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from sys_user
+                where user_no in ('DEMO_ADMIN', 'DEMO_OPS', 'DEMO_SERVICE', 'DEMO_WAREHOUSE', 'DEMO_ACCOUNTING', 'DEMO_UNASSIGNED')
+                """,
+                Integer.class);
+        Integer grantCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from sys_user_role
+                where grant_status = 'ACTIVE'
+                """,
+                Integer.class);
+        Integer sensitiveConfigCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from sys_config
+                where sensitive_flag = 1
+                  and masked_value is not null
+                  and (config_value is null or config_value not like '%secret%')
+                """,
+                Integer.class);
+
+        assertThat(roleCount).isEqualTo(5);
+        assertThat(demoUserCount).isEqualTo(6);
+        assertThat(grantCount).isGreaterThanOrEqualTo(5);
+        assertThat(sensitiveConfigCount).isGreaterThanOrEqualTo(3);
     }
 
     @Test
