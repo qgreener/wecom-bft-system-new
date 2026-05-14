@@ -239,39 +239,60 @@ public class LeadApplicationService {
         throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "线索目标状态不支持");
     }
 
-    public LeadPage searchAdminLeads(String keyword, String status, Integer pageNo, Integer pageSize) {
+    public LeadPage searchAdminLeads(
+        String keyword,
+        String mobile,
+        String sourceChannel,
+        Long ownerUserId,
+        String status,
+        Integer pageNo,
+        Integer pageSize
+    ) {
         AdminPrincipal principal = currentPrincipal();
+        StringBuilder where = new StringBuilder(" where deleted_flag = 0");
+        List<Object> args = new ArrayList<>();
+        if (isOpsOnly(principal)) {
+            where.append(" and owner_user_id = ?");
+            args.add(principal.userId());
+        } else if (ownerUserId != null) {
+            where.append(" and owner_user_id = ?");
+            args.add(ownerUserId);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" and (name like ? or mobile like ? or source_code like ?)");
+            String like = "%" + keyword.trim() + "%";
+            args.add(like);
+            args.add(like);
+            args.add(like);
+        }
+        if (mobile != null && !mobile.isBlank()) {
+            where.append(" and mobile = ?");
+            args.add(mobile.trim());
+        }
+        if (sourceChannel != null && !sourceChannel.isBlank()) {
+            where.append(" and source_channel = ?");
+            args.add(sourceChannel.trim());
+        }
+        if (status != null && !status.isBlank()) {
+            where.append(" and status = ?");
+            args.add(status);
+        }
+        int size = pageSize == null ? 20 : pageSize;
+        int page = pageNo == null ? 1 : pageNo;
+        Integer total = jdbcTemplate.queryForObject("select count(*) from crm_lead" + where, Integer.class, args.toArray());
         StringBuilder sql = new StringBuilder(
             """
             select id, lead_no, name, mobile, source_channel, source_code, intent_course_id,
                    owner_user_id, wecom_external_user_id, status, match_exception_flag,
                    next_follow_at, latest_follow_at, student_id, converted_order_id, abandon_reason
             from crm_lead
-            where deleted_flag = 0
-            """);
-        List<Object> args = new ArrayList<>();
-        if (isOpsOnly(principal)) {
-            sql.append(" and owner_user_id = ?");
-            args.add(principal.userId());
-        }
-        if (keyword != null && !keyword.isBlank()) {
-            sql.append(" and (name like ? or mobile like ? or source_code like ?)");
-            String like = "%" + keyword.trim() + "%";
-            args.add(like);
-            args.add(like);
-            args.add(like);
-        }
-        if (status != null && !status.isBlank()) {
-            sql.append(" and status = ?");
-            args.add(status);
-        }
+            """).append(where);
         sql.append(" order by id desc limit ? offset ?");
-        int size = pageSize == null ? 20 : pageSize;
-        int page = pageNo == null ? 1 : pageNo;
-        args.add(size);
-        args.add((page - 1) * size);
-        List<LeadResponse> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> toLeadResponse(mapLead(rs)), args.toArray());
-        return new LeadPage(records, page, size, records.size());
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        List<LeadResponse> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> toLeadResponse(mapLead(rs)), queryArgs.toArray());
+        return new LeadPage(records, page, size, total == null ? 0 : total);
     }
 
     @Transactional

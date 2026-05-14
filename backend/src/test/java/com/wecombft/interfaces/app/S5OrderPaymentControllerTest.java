@@ -3,6 +3,7 @@ package com.wecombft.interfaces.app;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -368,6 +369,30 @@ class S5OrderPaymentControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.order_id").value(orderId))
             .andExpect(jsonPath("$.data.shipments", hasSize(1)));
+    }
+
+    @Test
+    void should_filter_admin_orders_by_documented_paid_at_range() throws Exception {
+        long courseId = seedCourse("S5 支付时间筛选课程", false, 80900);
+        long specId = findSpecId(courseId);
+        String studentToken = appLogin("DEMO_APP_STUDENT");
+        long targetOrderId = createOrder(studentToken, courseId, specId, null, 1, "s5-paid-range-target", 80900);
+        long otherOrderId = createOrder(studentToken, courseId, specId, null, 1, "s5-paid-range-other", 80900);
+        payOrder(studentToken, targetOrderId, 80900, "S5_RANGE_TARGET_PAY", "MOCKPAY-S5-RANGE-TARGET");
+        payOrder(studentToken, otherOrderId, 80900, "S5_RANGE_OTHER_PAY", "MOCKPAY-S5-RANGE-OTHER");
+        jdbcTemplate.update("update trade_order set paid_at = ? where id = ?", LocalDateTime.parse("2026-05-10T10:00:00"), targetOrderId);
+        jdbcTemplate.update("update trade_order set paid_at = ? where id = ?", LocalDateTime.parse("2026-05-12T10:00:00"), otherOrderId);
+        String targetOrderNo = findString("trade_order", "order_no", targetOrderId);
+        String otherOrderNo = findString("trade_order", "order_no", otherOrderId);
+        String adminToken = adminLogin("DEMO_SERVICE");
+
+        mockMvc.perform(get("/api/admin/orders")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("paid_at_start", "2026-05-10T00:00:00")
+                .param("paid_at_end", "2026-05-10T23:59:59"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].order_no", hasItem(targetOrderNo)))
+            .andExpect(jsonPath("$.data.records[*].order_no", not(hasItem(otherOrderNo))));
     }
 
     private long seedCourse(String title, boolean containsPhysical, long salePriceCent) {

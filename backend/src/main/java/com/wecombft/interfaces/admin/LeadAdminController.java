@@ -34,12 +34,15 @@ public class LeadAdminController {
     @RequirePermission("crm:lead:read")
     public ResponseEntity<ApiResponse<LeadPage>> leads(
         @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "mobile", required = false) String mobile,
+        @RequestParam(value = "source_channel", required = false) String sourceChannel,
+        @RequestParam(value = "owner_user_id", required = false) Long ownerUserId,
         @RequestParam(value = "status", required = false) String status,
         @RequestParam(value = "page_no", required = false) Integer pageNo,
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            leadApplicationService.searchAdminLeads(keyword, status, pageNo, pageSize),
+            leadApplicationService.searchAdminLeads(keyword, mobile, sourceChannel, ownerUserId, status, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 

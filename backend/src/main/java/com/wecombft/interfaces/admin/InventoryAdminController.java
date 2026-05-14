@@ -1,7 +1,10 @@
 package com.wecombft.interfaces.admin;
 
+import java.time.LocalDateTime;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,20 +38,21 @@ public class InventoryAdminController {
     @RequirePermission("inventory:sku:write")
     public ResponseEntity<ApiResponse<SkuPage>> skus(
         @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "category_code", required = false) String categoryCode,
         @RequestParam(value = "status", required = false) String status,
         @RequestParam(value = "warning_only", required = false) Boolean warningOnly,
         @RequestParam(value = "page_no", required = false) Integer pageNo,
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.skus(keyword, status, warningOnly, pageNo, pageSize),
+            supplyChainApplicationService.skus(keyword, categoryCode, status, warningOnly, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/inventory/skus")
     @RequirePermission("inventory:sku:write")
     public ResponseEntity<ApiResponse<SkuResponse>> createSku(
-        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
         @RequestBody SkuCommand command
     ) {
         CreationResult<SkuResponse> result = supplyChainApplicationService.createSku(
@@ -69,11 +73,27 @@ public class InventoryAdminController {
         @RequestParam(value = "order_id", required = false) Long orderId,
         @RequestParam(value = "shipment_id", required = false) Long shipmentId,
         @RequestParam(value = "purchase_id", required = false) Long purchaseId,
+        @RequestParam(value = "biz_type", required = false) String bizType,
+        @RequestParam(value = "biz_id", required = false) Long bizId,
+        @RequestParam(value = "occurred_at_start", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime occurredAtStart,
+        @RequestParam(value = "occurred_at_end", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime occurredAtEnd,
         @RequestParam(value = "page_no", required = false) Integer pageNo,
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.stockFlows(skuId, orderId, shipmentId, purchaseId, pageNo, pageSize),
+            supplyChainApplicationService.stockFlows(
+                skuId,
+                orderId,
+                shipmentId,
+                purchaseId,
+                bizType,
+                bizId,
+                occurredAtStart,
+                occurredAtEnd,
+                pageNo,
+                pageSize),
             TraceIds.currentOrCreate()));
     }
 

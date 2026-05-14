@@ -175,6 +175,22 @@ class S4LeadStudentControllerTest {
     }
 
     @Test
+    void should_filter_admin_leads_by_documented_query_params() throws Exception {
+        String opsToken = loginAs("DEMO_OPS");
+        createAdminLead(opsToken, "S4 参数筛选目标线索", "13900002110", 100000000002L);
+        createAdminLead(opsToken, "S4 参数筛选干扰线索", "13900002111", 100000000002L);
+
+        mockMvc.perform(get("/api/admin/leads")
+                .header("Authorization", "Bearer " + opsToken)
+                .param("mobile", "13900002110")
+                .param("source_channel", "PC_ADMIN")
+                .param("owner_user_id", "100000000002"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].name", hasItem("S4 参数筛选目标线索")))
+            .andExpect(content().string(not(org.hamcrest.Matchers.containsString("S4 参数筛选干扰线索"))));
+    }
+
+    @Test
     void should_login_authorize_phone_merge_student_and_block_unbound_or_conflict_cases() throws Exception {
         String unboundToken = appLogin("mock:wx_s4_unbound");
 

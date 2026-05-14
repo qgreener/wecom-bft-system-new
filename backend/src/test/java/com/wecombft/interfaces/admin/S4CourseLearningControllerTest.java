@@ -2,6 +2,7 @@ package com.wecombft.interfaces.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -162,6 +163,20 @@ class S4CourseLearningControllerTest {
                 Integer.class,
                 courseId);
         assertThat(deniedAuditCount).isEqualTo(1);
+    }
+
+    @Test
+    void should_filter_admin_courses_by_documented_teacher_query_param() throws Exception {
+        String eduToken = loginAs("DEMO_EDU_ADMIN");
+        createCourse(eduToken, "S4 教师筛选目标课程", 100000000007L);
+        createCourse(eduToken, "S4 教师筛选干扰课程", 100000000008L);
+
+        mockMvc.perform(get("/api/admin/courses")
+                .header("Authorization", "Bearer " + eduToken)
+                .param("teacher_user_id", "100000000007"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].course_title", hasItem("S4 教师筛选目标课程")))
+            .andExpect(jsonPath("$.data.records[*].course_title", not(hasItem("S4 教师筛选干扰课程"))));
     }
 
     @Test

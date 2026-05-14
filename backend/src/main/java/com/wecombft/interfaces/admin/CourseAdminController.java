@@ -41,12 +41,14 @@ public class CourseAdminController {
     @RequireAnyPermission({"course:spec:write", "course:lesson:read", "course:lesson:write"})
     public ResponseEntity<ApiResponse<CoursePage>> courses(
         @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "course_type", required = false) String courseType,
+        @RequestParam(value = "teacher_user_id", required = false) Long teacherUserId,
         @RequestParam(value = "status", required = false) String status,
         @RequestParam(value = "page_no", required = false) Integer pageNo,
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            courseApplicationService.adminCourses(keyword, status, pageNo, pageSize),
+            courseApplicationService.adminCourses(keyword, courseType, teacherUserId, status, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 

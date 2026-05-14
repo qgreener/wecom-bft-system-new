@@ -64,6 +64,9 @@ public class SupplyChainApplicationService {
     @Transactional
     public CreationResult<SkuResponse> createSku(AdminPrincipal principal, String idempotencyKey, SkuCommand command) {
         requireAdmin(principal);
+        if (command != null && command.skuId() != null) {
+            return updateSku(principal, command);
+        }
         String key = requireIdempotencyKey(idempotencyKey);
         Optional<SkuRow> existing = findSkuByIdempotencyKey(key);
         if (existing.isPresent()) {
@@ -124,13 +127,79 @@ public class SupplyChainApplicationService {
         return new CreationResult<>(findSku(skuId).orElseThrow().toResponse(), true);
     }
 
-    public SkuPage skus(String keyword, String status, Boolean warningOnly, Integer pageNo, Integer pageSize) {
+    private CreationResult<SkuResponse> updateSku(AdminPrincipal principal, SkuCommand command) {
+        long skuId = positive(command.skuId(), "SKU 不能为空");
+        SkuRow current = findSku(skuId)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "SKU 不存在"));
+        String skuName = requireText(command.skuName(), "SKU 名称不能为空");
+        String unit = requireText(command.unit(), "计量单位不能为空");
+        String status = normalizeChoice(defaultString(command.status(), "ACTIVE"), List.of("ACTIVE", "DISABLED"), "SKU 状态非法");
+        String specAttrs = toJson(command.specAttrs() == null ? Map.of() : command.specAttrs());
+        String specAttrsHash = sha256Hex(specAttrs).substring(0, 32);
+        Long supplierId = command.defaultSupplierId();
+        if (supplierId != null) {
+            requireActiveSupplier(supplierId);
+        }
+        try {
+            jdbcTemplate.update(
+                """
+                update inventory_sku
+                set sku_name = ?,
+                    category_code = ?,
+                    sku_type = ?,
+                    unit = ?,
+                    spec_attrs = ?,
+                    spec_attrs_hash = ?,
+                    default_supplier_id = ?,
+                    cost_price_cent = ?,
+                    safety_stock = ?,
+                    status = ?,
+                    image_url = ?,
+                    updated_at = ?,
+                    updated_by = ?,
+                    version = version + 1
+                where id = ? and deleted_flag = 0
+                """,
+                skuName,
+                blankToNull(command.categoryCode()),
+                normalizeText(defaultString(command.skuType(), "MATERIAL")),
+                unit,
+                specAttrs,
+                specAttrsHash,
+                supplierId,
+                command.costPriceCent(),
+                nonNegative(command.safetyStock(), "安全库存不能为负"),
+                status,
+                blankToNull(command.imageUrl()),
+                LocalDateTime.now(),
+                principal.userId(),
+                skuId);
+        } catch (DuplicateKeyException duplicateKeyException) {
+            throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "SKU 编号或规格已存在");
+        }
+        auditLogService.writeSuccess(
+            principal,
+            "INVENTORY",
+            "SKU_UPDATE",
+            "INVENTORY_SKU",
+            skuId,
+            current.skuNo(),
+            null,
+            "{\"sku_name\":\"" + jsonSafe(skuName) + "\"}");
+        return new CreationResult<>(findSku(skuId).orElseThrow().toResponse(), false);
+    }
+
+    public SkuPage skus(String keyword, String categoryCode, String status, Boolean warningOnly, Integer pageNo, Integer pageSize) {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" where deleted_flag = 0");
         if (keyword != null && !keyword.isBlank()) {
             where.append(" and (sku_no like ? or sku_name like ?)");
             args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
+        }
+        if (categoryCode != null && !categoryCode.isBlank()) {
+            where.append(" and category_code = ?");
+            args.add(categoryCode.trim());
         }
         if (status != null && !status.isBlank()) {
             where.append(" and status = ?");
@@ -238,13 +307,37 @@ public class SupplyChainApplicationService {
         return new CreationResult<>(findStockFlowByIdempotency(key).orElseThrow().toResponse(), true);
     }
 
-    public StockFlowPage stockFlows(Long skuId, Long orderId, Long shipmentId, Long purchaseId, Integer pageNo, Integer pageSize) {
+    public StockFlowPage stockFlows(
+        Long skuId,
+        Long orderId,
+        Long shipmentId,
+        Long purchaseId,
+        String bizType,
+        Long bizId,
+        LocalDateTime occurredAtStart,
+        LocalDateTime occurredAtEnd,
+        Integer pageNo,
+        Integer pageSize
+    ) {
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(" where 1 = 1");
         appendLongFilter(where, args, "sku_id", skuId);
         appendLongFilter(where, args, "order_id", orderId);
         appendLongFilter(where, args, "shipment_id", shipmentId);
         appendLongFilter(where, args, "purchase_id", purchaseId);
+        if (bizType != null && !bizType.isBlank()) {
+            where.append(" and biz_type = ?");
+            args.add(bizType.trim().toUpperCase());
+        }
+        appendLongFilter(where, args, "biz_id", bizId);
+        if (occurredAtStart != null) {
+            where.append(" and occurred_at >= ?");
+            args.add(occurredAtStart);
+        }
+        if (occurredAtEnd != null) {
+            where.append(" and occurred_at <= ?");
+            args.add(occurredAtEnd);
+        }
         int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
         int page = pageNo == null ? 1 : Math.max(1, pageNo);
         long total = countRows("select count(*) from inventory_stock_flow" + where, args);
@@ -1874,6 +1967,7 @@ public class SupplyChainApplicationService {
     }
 
     public record SkuCommand(
+        Long skuId,
         String skuName,
         String categoryCode,
         String skuType,

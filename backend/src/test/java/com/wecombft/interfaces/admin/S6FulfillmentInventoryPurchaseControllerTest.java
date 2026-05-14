@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -179,6 +180,82 @@ class S6FulfillmentInventoryPurchaseControllerTest {
     }
 
     @Test
+    void should_update_sku_and_filter_skus_by_category_code() throws Exception {
+        String warehouseToken = adminLogin("DEMO_WAREHOUSE");
+        long suffix = SEQUENCE.incrementAndGet();
+        String targetPayload = """
+            {
+              "sku_name": "S6 分类筛选目标 SKU %d",
+              "category_code": "S6_FILTER_TARGET",
+              "sku_type": "MATERIAL",
+              "unit": "件",
+              "spec_attrs": {"filter":"target-%d"},
+              "default_supplier_id": %d,
+              "cost_price_cent": 800,
+              "safety_stock": 1,
+              "status": "ACTIVE"
+            }
+            """.formatted(suffix, suffix, SUPPLIER_ID);
+        String targetResponse = mockMvc.perform(post("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .header("Idempotency-Key", "s6-sku-filter-target-" + suffix)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(targetPayload))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long targetSkuId = extractLong(targetResponse, "sku_id");
+
+        mockMvc.perform(post("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .header("Idempotency-Key", "s6-sku-filter-other-" + suffix)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "sku_name": "S6 分类筛选干扰 SKU %d",
+                      "category_code": "S6_FILTER_OTHER",
+                      "sku_type": "MATERIAL",
+                      "unit": "件",
+                      "spec_attrs": {"filter":"other-%d"},
+                      "default_supplier_id": %d,
+                      "cost_price_cent": 900,
+                      "safety_stock": 1,
+                      "status": "ACTIVE"
+                    }
+                    """.formatted(suffix, suffix, SUPPLIER_ID)))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "sku_id": %d,
+                      "sku_name": "S6 分类筛选目标 SKU 已更新 %d",
+                      "category_code": "S6_FILTER_TARGET",
+                      "sku_type": "MATERIAL",
+                      "unit": "件",
+                      "spec_attrs": {"filter":"target-%d"},
+                      "default_supplier_id": %d,
+                      "cost_price_cent": 850,
+                      "safety_stock": 2,
+                      "status": "ACTIVE"
+                    }
+                    """.formatted(targetSkuId, suffix, suffix, SUPPLIER_ID)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.sku_name").value("S6 分类筛选目标 SKU 已更新 " + suffix));
+
+        mockMvc.perform(get("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .param("category_code", "S6_FILTER_TARGET"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].sku_name", hasItem("S6 分类筛选目标 SKU 已更新 " + suffix)))
+            .andExpect(jsonPath("$.data.records[*].sku_name", not(hasItem("S6 分类筛选干扰 SKU " + suffix))))
+            .andExpect(jsonPath("$.data.records[*].category_code", hasItem("S6_FILTER_TARGET")));
+    }
+
+    @Test
     void should_return_matching_total_for_s6_page_queries() throws Exception {
         String studentToken = appLogin("DEMO_APP_STUDENT");
         String warehouseToken = adminLogin("DEMO_WAREHOUSE");
@@ -187,6 +264,7 @@ class S6FulfillmentInventoryPurchaseControllerTest {
 
         createManualStockFlow(warehouseToken, "s6-page-flow-in-" + suffix, TEXTBOOK_SKU_ID, "IN", 2);
         createManualStockFlow(warehouseToken, "s6-page-flow-out-" + suffix, TEXTBOOK_SKU_ID, "OUT", 1);
+        createStockFlow(warehouseToken, "s6-page-flow-adjust-" + suffix, TEXTBOOK_SKU_ID, "IN", 1, "ADJUSTMENT");
 
         createPurchase(warehouseToken, "s6-page-purchase-a-" + suffix, 1, 1000);
         createPurchase(warehouseToken, "s6-page-purchase-b-" + suffix, 1, 1000);
@@ -206,6 +284,7 @@ class S6FulfillmentInventoryPurchaseControllerTest {
         mockMvc.perform(get("/api/admin/inventory/stock-flows")
                 .header("Authorization", "Bearer " + warehouseToken)
                 .param("sku_id", String.valueOf(TEXTBOOK_SKU_ID))
+                .param("biz_type", "MANUAL")
                 .param("page_no", "1")
                 .param("page_size", "1"))
             .andExpect(status().isOk())
@@ -616,6 +695,10 @@ class S6FulfillmentInventoryPurchaseControllerTest {
     }
 
     private void createManualStockFlow(String warehouseToken, String idempotencyKey, long skuId, String direction, int quantity) throws Exception {
+        createStockFlow(warehouseToken, idempotencyKey, skuId, direction, quantity, "MANUAL");
+    }
+
+    private void createStockFlow(String warehouseToken, String idempotencyKey, long skuId, String direction, int quantity, String bizType) throws Exception {
         mockMvc.perform(post("/api/admin/inventory/stock-flows")
                 .header("Authorization", "Bearer " + warehouseToken)
                 .header("Idempotency-Key", idempotencyKey)
@@ -625,10 +708,10 @@ class S6FulfillmentInventoryPurchaseControllerTest {
                       "sku_id": %d,
                       "direction": "%s",
                       "quantity": %d,
-                      "biz_type": "MANUAL",
+                      "biz_type": "%s",
                       "biz_no": "%s"
                     }
-                    """.formatted(skuId, direction, quantity, idempotencyKey)))
+                    """.formatted(skuId, direction, quantity, bizType, idempotencyKey)))
             .andExpect(status().isCreated());
     }
 

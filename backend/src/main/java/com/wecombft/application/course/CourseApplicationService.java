@@ -326,35 +326,45 @@ public class CourseApplicationService {
         return toCourseDetail(course, true);
     }
 
-    public CoursePage adminCourses(String keyword, String status, Integer pageNo, Integer pageSize) {
+    public CoursePage adminCourses(String keyword, String courseType, Long teacherUserId, String status, Integer pageNo, Integer pageSize) {
         AdminPrincipal principal = currentPrincipal();
+        StringBuilder where = new StringBuilder(" where c.deleted_flag = 0");
+        List<Object> args = new ArrayList<>();
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" and c.course_title like ?");
+            args.add("%" + keyword.trim() + "%");
+        }
+        if (courseType != null && !courseType.isBlank()) {
+            where.append(" and c.course_type = ?");
+            args.add(courseType.trim().toUpperCase());
+        }
+        if (status != null && !status.isBlank()) {
+            where.append(" and c.status = ?");
+            args.add(status);
+        }
+        if (isTeacherOnly(principal)) {
+            where.append(" and c.teacher_user_id = ?");
+            args.add(principal.userId());
+        } else if (teacherUserId != null) {
+            where.append(" and c.teacher_user_id = ?");
+            args.add(teacherUserId);
+        }
+        Integer total = jdbcTemplate.queryForObject("select count(*) from course c" + where, Integer.class, args.toArray());
         StringBuilder sql = new StringBuilder(
             """
             select c.*, coalesce(min(s.sale_price_cent), 0) as min_sale_price_cent
             from course c
             left join course_spec s on s.course_id = c.id and s.deleted_flag = 0
-            where c.deleted_flag = 0
-            """);
-        List<Object> args = new ArrayList<>();
-        if (keyword != null && !keyword.isBlank()) {
-            sql.append(" and c.course_title like ?");
-            args.add("%" + keyword.trim() + "%");
-        }
-        if (status != null && !status.isBlank()) {
-            sql.append(" and c.status = ?");
-            args.add(status);
-        }
-        if (isTeacherOnly(principal)) {
-            sql.append(" and c.teacher_user_id = ?");
-            args.add(principal.userId());
-        }
+            """)
+            .append(where);
         sql.append(" group by c.id order by c.created_at desc limit ? offset ?");
         int size = pageSize == null ? 20 : pageSize;
         int page = pageNo == null ? 1 : pageNo;
-        args.add(size);
-        args.add((page - 1) * size);
-        List<CourseListItem> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapCourseListItem(rs), args.toArray());
-        return new CoursePage(records, page, size, records.size());
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        List<CourseListItem> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapCourseListItem(rs), queryArgs.toArray());
+        return new CoursePage(records, page, size, total == null ? 0 : total);
     }
 
     public AppCoursePage appCourses(String keyword, String categoryCode, String courseType, Integer pageNo, Integer pageSize) {

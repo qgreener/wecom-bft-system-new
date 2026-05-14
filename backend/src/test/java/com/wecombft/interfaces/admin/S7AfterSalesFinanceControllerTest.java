@@ -263,6 +263,139 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     @Test
+    void should_accept_documented_s7_api_paths_as_aliases() throws Exception {
+        String studentToken = appLogin("DEMO_APP_STUDENT");
+        String serviceToken = adminLogin("DEMO_SERVICE");
+        String accountingToken = adminLogin("DEMO_ACCOUNTING");
+        long refundOrderId = createPaidOrder(studentToken, false, null, "s7-api-contract-refund", 33800);
+
+        String refundResponse = mockMvc.perform(post("/api/app/orders/{order_id}/refunds", refundOrderId)
+                .header("Authorization", "Bearer " + studentToken)
+                .header("Idempotency-Key", "s7-api-contract-refund")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "apply_amount_cent": 33800,
+                      "refund_reason": "契约路径退款",
+                      "apply_description": "contract alias",
+                      "entitlement_action": "FREEZE"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.data.order_id").value(refundOrderId))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long refundId = extractLong(refundResponse, "refund_id");
+
+        mockMvc.perform(post("/api/admin/refunds/{refund_id}/review", refundId)
+                .header("Authorization", "Bearer " + serviceToken)
+                .header("Idempotency-Key", "s7-api-contract-review")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"action":"REJECT","reject_reason":"契约路径拒绝退款"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("REJECTED"));
+
+        long invoiceOrderId = createPaidOrder(studentToken, false, null, "s7-api-contract-invoice", 34800);
+        long titleId = saveInvoiceTitle(studentToken, "s7-api-contract-title", "COMPANY", "S7 契约公司", "91330100S7API", "api@example.test");
+        String invoiceResponse = mockMvc.perform(post("/api/app/orders/{order_id}/invoices", invoiceOrderId)
+                .header("Authorization", "Bearer " + studentToken)
+                .header("Idempotency-Key", "s7-api-contract-invoice")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"title_id":%d,"email":"api@example.test"}
+                    """.formatted(titleId)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.data.order_id").value(invoiceOrderId))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long invoiceId = extractLong(invoiceResponse, "invoice_id");
+
+        mockMvc.perform(post("/api/admin/invoices/{invoice_id}/issue-manual", invoiceId)
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-api-contract-issue")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "invoice_no": "S7API-ISSUE",
+                      "invoice_file": "FILE_S7_API_ISSUE",
+                      "issued_at": "2026-05-15T10:30:00",
+                      "remark": "契约路径人工开票"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("ISSUED"));
+
+        String batchResponse = mockMvc.perform(post("/api/admin/reconciliation/batches")
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-api-contract-recon")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "bill_month": "2026-05",
+                      "bill_source": "WECHAT",
+                      "file_name": "s7-api-contract.csv",
+                      "file_digest": "S7_API_CONTRACT_RECON",
+                      "records": []
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long batchId = extractLong(batchResponse, "batch_id");
+
+        mockMvc.perform(get("/api/admin/reconciliation/batches/{batch_id}/records", batchId)
+                .header("Authorization", "Bearer " + accountingToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records", hasSize(0)));
+
+        String materialResponse = mockMvc.perform(post("/api/admin/accounting/materials")
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-api-contract-material")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "material_type": "MONTHLY_BOOKKEEPING",
+                      "related_month": "2026-05",
+                      "order_id": %d,
+                      "related_object_type": "ORDER",
+                      "related_object_id": %d,
+                      "purpose": "契约路径材料",
+                      "due_at": "2026-05-31T23:59:59"
+                    }
+                    """.formatted(invoiceOrderId, invoiceOrderId)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long materialId = extractLong(materialResponse, "material_id");
+
+        mockMvc.perform(post("/api/admin/accounting/materials/{material_id}/actions", materialId)
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-api-contract-material-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"action":"UPLOAD","file_refs":["FILE_S7_API_MATERIAL"],"remark":"契约路径上传"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("UPLOADED"));
+
+        mockMvc.perform(post("/api/admin/accounting/materials/{material_id}/actions", materialId)
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s7-api-contract-material-confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"action":"CONFIRM","remark":"契约路径确认"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("CONFIRMED"));
+    }
+
+    @Test
     void should_import_reconciliation_records_without_mutating_payment_or_refund_status() throws Exception {
         String studentToken = appLogin("DEMO_APP_STUDENT");
         String serviceToken = adminLogin("DEMO_SERVICE");

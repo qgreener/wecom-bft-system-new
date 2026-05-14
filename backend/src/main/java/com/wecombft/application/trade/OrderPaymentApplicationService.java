@@ -476,6 +476,8 @@ public class OrderPaymentApplicationService {
         String fulfillmentStatus,
         String refundStatus,
         String invoiceStatus,
+        LocalDateTime paidAtStart,
+        LocalDateTime paidAtEnd,
         Integer pageNo,
         Integer pageSize
     ) {
@@ -489,6 +491,14 @@ public class OrderPaymentApplicationService {
             condition.append(" and (o.order_no like ? or o.merchant_order_no like ?)");
             args.add("%" + keyword.trim() + "%");
             args.add("%" + keyword.trim() + "%");
+        }
+        if (paidAtStart != null) {
+            condition.append(" and o.paid_at >= ?");
+            args.add(paidAtStart);
+        }
+        if (paidAtEnd != null) {
+            condition.append(" and o.paid_at <= ?");
+            args.add(paidAtEnd);
         }
         if (principal != null && principal.roleCodes().contains("WAREHOUSE")
             && !principal.roleCodes().contains("SUPER_ADMIN")) {
@@ -525,6 +535,16 @@ public class OrderPaymentApplicationService {
         Integer pageNo,
         Integer pageSize
     ) {
+        StringBuilder condition = new StringBuilder(baseCondition);
+        List<Object> args = new ArrayList<>(baseArgs);
+        appendEnumFilter(condition, args, "o.payment_status", paymentStatus, List.of("PENDING", "PAID", "CLOSED"));
+        appendEnumFilter(condition, args, "o.fulfillment_status", fulfillmentStatus, List.of("NO_SHIPMENT", "PENDING_SHIPMENT", "SHIPPED", "SIGNED"));
+        appendEnumFilter(condition, args, "o.refund_status", refundStatus, List.of("NONE", "REVIEWING", "REJECTED", "PROCESSING", "MANUAL_REQUIRED", "FAILED", "REFUNDED"));
+        appendEnumFilter(condition, args, "o.invoice_status", invoiceStatus, List.of("NOT_APPLIED", "APPLIED", "TO_BE_ISSUED", "ISSUED", "RED_REVERSED"));
+        Integer total = jdbcTemplate.queryForObject(
+            "select count(*) from trade_order o where " + condition,
+            Integer.class,
+            args.toArray());
         StringBuilder sql = new StringBuilder(
             """
             select o.id, o.order_no, o.merchant_order_no, o.student_id, o.user_id, o.lead_id,
@@ -535,17 +555,13 @@ public class OrderPaymentApplicationService {
                    o.payment_expire_at, o.paid_at, o.closed_at, o.close_reason, o.created_at
             from trade_order o
             where
-            """).append(' ').append(baseCondition);
-        List<Object> args = new ArrayList<>(baseArgs);
-        appendEnumFilter(sql, args, "o.payment_status", paymentStatus, List.of("PENDING", "PAID", "CLOSED"));
-        appendEnumFilter(sql, args, "o.fulfillment_status", fulfillmentStatus, List.of("NO_SHIPMENT", "PENDING_SHIPMENT", "SHIPPED", "SIGNED"));
-        appendEnumFilter(sql, args, "o.refund_status", refundStatus, List.of("NONE", "REVIEWING", "REJECTED", "PROCESSING", "MANUAL_REQUIRED", "FAILED", "REFUNDED"));
-        appendEnumFilter(sql, args, "o.invoice_status", invoiceStatus, List.of("NOT_APPLIED", "APPLIED", "TO_BE_ISSUED", "ISSUED", "RED_REVERSED"));
+            """).append(' ').append(condition);
         sql.append(" order by o.created_at desc, o.id desc limit ? offset ?");
         int size = pageSize == null ? DEFAULT_PAGE_SIZE : Math.max(1, Math.min(pageSize, 100));
         int page = pageNo == null ? DEFAULT_PAGE_NO : Math.max(1, pageNo);
-        args.add(size);
-        args.add((page - 1) * size);
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
         List<OrderListItem> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
             OrderRow order = mapOrder(rs, rowNum);
             return new OrderListItem(
@@ -565,8 +581,8 @@ public class OrderPaymentApplicationService {
                 order.paymentExpireAt(),
                 LocalDateTime.now(),
                 order.createdAt());
-        }, args.toArray());
-        return new OrderPage(records, page, size, records.size());
+        }, queryArgs.toArray());
+        return new OrderPage(records, page, size, total == null ? 0 : total);
     }
 
     private OrderDetailResponse toDetailResponse(OrderRow order, boolean includeAuditLogs) {

@@ -1,6 +1,9 @@
 package com.wecombft.interfaces.admin;
 
+import java.time.LocalDateTime;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,6 +35,10 @@ public class OrderAdminController {
         @RequestParam(value = "fulfillment_status", required = false) String fulfillmentStatus,
         @RequestParam(value = "refund_status", required = false) String refundStatus,
         @RequestParam(value = "invoice_status", required = false) String invoiceStatus,
+        @RequestParam(value = "paid_at_start", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paidAtStart,
+        @RequestParam(value = "paid_at_end", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime paidAtEnd,
         @RequestParam(value = "page_no", required = false) Integer pageNo,
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
@@ -44,6 +51,8 @@ public class OrderAdminController {
                 fulfillmentStatus,
                 refundStatus,
                 invoiceStatus,
+                paidAtStart,
+                paidAtEnd,
                 pageNo,
                 pageSize),
             TraceIds.currentOrCreate()));

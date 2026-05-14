@@ -1,5 +1,7 @@
 package com.wecombft.interfaces.finance;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +49,7 @@ import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
+import com.wecombft.shared.web.ApiException;
 import com.wecombft.shared.web.ApiResponse;
 
 @RestController
@@ -65,6 +68,26 @@ public class AfterSalesFinanceController {
         @RequestBody RefundApplyCommand command
     ) {
         CreationResult<RefundResponse> result = service.applyRefund(authorization, idempotencyKey, command);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/app/orders/{order_id}/refunds")
+    public ResponseEntity<ApiResponse<RefundResponse>> applyOrderRefund(
+        @RequestHeader("Authorization") String authorization,
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("order_id") long orderId,
+        @RequestBody RefundApplyCommand command
+    ) {
+        RefundApplyCommand merged = command == null
+            ? new RefundApplyCommand(orderId, null, null, null, null)
+            : new RefundApplyCommand(
+                orderId,
+                command.applyAmountCent(),
+                command.refundReason(),
+                command.applyDescription(),
+                command.entitlementAction());
+        CreationResult<RefundResponse> result = service.applyRefund(authorization, idempotencyKey, merged);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
     }
@@ -103,6 +126,32 @@ public class AfterSalesFinanceController {
         return ResponseEntity.ok(ApiResponse.ok(
             service.rejectRefund(AdminPrincipalContext.currentOrNull(), refundId, command),
             TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/refunds/{refund_id}/review")
+    @RequirePermission("refund:review:write")
+    public ResponseEntity<ApiResponse<RefundResponse>> reviewRefund(
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+        @PathVariable("refund_id") long refundId,
+        @RequestBody RefundReviewCommand command
+    ) {
+        String action = command == null || command.action() == null ? "" : command.action().trim().toUpperCase();
+        if ("APPROVE".equals(action)) {
+            RefundApproveCommand approveCommand = new RefundApproveCommand(
+                command.approvedAmountCent(),
+                command.refundChannel(),
+                command.reviewComment(),
+                command.entitlementAction());
+            return ResponseEntity.ok(ApiResponse.ok(
+                service.approveRefund(AdminPrincipalContext.currentOrNull(), idempotencyKey, refundId, approveCommand),
+                TraceIds.currentOrCreate()));
+        }
+        if ("REJECT".equals(action)) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                service.rejectRefund(AdminPrincipalContext.currentOrNull(), refundId, new RefundRejectCommand(command.rejectReason())),
+                TraceIds.currentOrCreate()));
+        }
+        throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "退款审核动作非法");
     }
 
     @PostMapping("/api/admin/refunds/{refund_id}/manual-complete")
@@ -151,6 +200,21 @@ public class AfterSalesFinanceController {
         return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
     }
 
+    @PostMapping("/api/app/orders/{order_id}/invoices")
+    public ResponseEntity<ApiResponse<InvoiceResponse>> applyOrderInvoice(
+        @RequestHeader("Authorization") String authorization,
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("order_id") long orderId,
+        @RequestBody InvoiceApplyCommand command
+    ) {
+        InvoiceApplyCommand merged = command == null
+            ? new InvoiceApplyCommand(orderId, null, null)
+            : new InvoiceApplyCommand(orderId, command.titleId(), command.email());
+        CreationResult<InvoiceResponse> result = service.applyInvoice(authorization, idempotencyKey, merged);
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
+    }
+
     @GetMapping("/api/app/invoices")
     public ResponseEntity<ApiResponse<InvoicePage>> appInvoices(@RequestHeader("Authorization") String authorization) {
         return ResponseEntity.ok(ApiResponse.ok(service.appInvoices(authorization), TraceIds.currentOrCreate()));
@@ -166,6 +230,16 @@ public class AfterSalesFinanceController {
         return ResponseEntity.ok(ApiResponse.ok(
             service.issueInvoice(AdminPrincipalContext.currentOrNull(), idempotencyKey, invoiceId, command),
             TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/invoices/{invoice_id}/issue-manual")
+    @RequirePermission("tax:invoice:write")
+    public ResponseEntity<ApiResponse<InvoiceResponse>> issueInvoiceManual(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("invoice_id") long invoiceId,
+        @RequestBody InvoiceIssueCommand command
+    ) {
+        return issueInvoice(idempotencyKey, invoiceId, command);
     }
 
     @PostMapping("/api/admin/invoices/{invoice_id}/red-reverse")
@@ -205,6 +279,15 @@ public class AfterSalesFinanceController {
         return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
     }
 
+    @PostMapping("/api/admin/reconciliation/batches")
+    @RequirePermission("finance:reconciliation:write")
+    public ResponseEntity<ApiResponse<ReconciliationBatchResponse>> createReconciliationBatch(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @RequestBody ReconciliationImportCommand command
+    ) {
+        return importReconciliation(idempotencyKey, command);
+    }
+
     @GetMapping("/api/admin/reconciliations")
     @RequirePermission("finance:reconciliation:write")
     public ResponseEntity<ApiResponse<ReconciliationBatchPage>> reconciliationBatches() {
@@ -217,6 +300,12 @@ public class AfterSalesFinanceController {
         return ResponseEntity.ok(ApiResponse.ok(service.reconciliationDetail(batchId), TraceIds.currentOrCreate()));
     }
 
+    @GetMapping("/api/admin/reconciliation/batches/{batch_id}/records")
+    @RequirePermission("finance:reconciliation:write")
+    public ResponseEntity<ApiResponse<ReconciliationBatchResponse>> reconciliationBatchRecords(@PathVariable("batch_id") long batchId) {
+        return reconciliationDetail(batchId);
+    }
+
     @PostMapping("/api/admin/accounting-materials")
     @RequirePermission("accounting:material:write")
     public ResponseEntity<ApiResponse<AccountingMaterialResponse>> createAccountingMaterial(
@@ -226,6 +315,15 @@ public class AfterSalesFinanceController {
         CreationResult<AccountingMaterialResponse> result = service.createAccountingMaterial(AdminPrincipalContext.currentOrNull(), idempotencyKey, command);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(ApiResponse.created(result.response(), TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/accounting/materials")
+    @RequirePermission("accounting:material:write")
+    public ResponseEntity<ApiResponse<AccountingMaterialResponse>> createAccountingMaterialAlias(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @RequestBody AccountingMaterialCreateCommand command
+    ) {
+        return createAccountingMaterial(idempotencyKey, command);
     }
 
     @PostMapping("/api/admin/accounting-materials/{material_id}/files")
@@ -276,6 +374,44 @@ public class AfterSalesFinanceController {
             TraceIds.currentOrCreate()));
     }
 
+    @PostMapping("/api/admin/accounting/materials/{material_id}/actions")
+    @RequirePermission("accounting:material:write")
+    public ResponseEntity<ApiResponse<AccountingMaterialResponse>> accountingMaterialAction(
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+        @PathVariable("material_id") long materialId,
+        @RequestBody AccountingMaterialActionCommand command
+    ) {
+        String action = command == null || command.action() == null ? "" : command.action().trim().toUpperCase();
+        if ("UPLOAD".equals(action)) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                service.uploadAccountingMaterialFiles(
+                    AdminPrincipalContext.currentOrNull(),
+                    idempotencyKey,
+                    materialId,
+                    new AccountingMaterialUploadCommand(command.fileRefs(), command.remark())),
+                TraceIds.currentOrCreate()));
+        }
+        if ("CONFIRM".equals(action)) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                service.confirmAccountingMaterial(
+                    AdminPrincipalContext.currentOrNull(),
+                    idempotencyKey,
+                    materialId,
+                    new AccountingMaterialConfirmCommand(command.remark())),
+                TraceIds.currentOrCreate()));
+        }
+        if ("CLOSE".equals(action)) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                service.closeAccountingMaterial(
+                    AdminPrincipalContext.currentOrNull(),
+                    idempotencyKey,
+                    materialId,
+                    new AccountingMaterialCloseCommand(command.closedReason())),
+                TraceIds.currentOrCreate()));
+        }
+        throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "代账材料动作非法");
+    }
+
     @GetMapping("/api/admin/accounting-workbench/summary")
     @RequireAnyPermission({"tax:invoice:write", "finance:reconciliation:write", "accounting:material:write"})
     public ResponseEntity<ApiResponse<AccountingWorkbenchSummaryResponse>> accountingWorkbenchSummary(
@@ -296,5 +432,18 @@ public class AfterSalesFinanceController {
         return ResponseEntity.ok(ApiResponse.ok(
             service.retryCompensation(AdminPrincipalContext.currentOrNull(), idempotencyKey, compensationId, command),
             TraceIds.currentOrCreate()));
+    }
+
+    public record RefundReviewCommand(
+        String action,
+        Long approvedAmountCent,
+        String reviewComment,
+        String rejectReason,
+        String refundChannel,
+        String entitlementAction
+    ) {
+    }
+
+    public record AccountingMaterialActionCommand(String action, List<String> fileRefs, String closedReason, String remark) {
     }
 }
