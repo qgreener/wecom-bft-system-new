@@ -3,6 +3,7 @@ package com.wecombft.interfaces.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,8 +19,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.wecombft.application.fulfillment.SupplyChainApplicationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -38,6 +42,9 @@ class S6FulfillmentInventoryPurchaseControllerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private SupplyChainApplicationService supplyChainApplicationService;
 
     @Test
     void should_manage_sku_and_manual_stock_flows_idempotently() throws Exception {
@@ -125,6 +132,132 @@ class S6FulfillmentInventoryPurchaseControllerTest {
                 "select count(*) from inventory_stock_flow where sku_id = ?",
                 Integer.class,
                 skuId)).isEqualTo(2);
+    }
+
+    @Test
+    void should_return_existing_sku_when_create_sku_repeats_idempotency_key() throws Exception {
+        String warehouseToken = adminLogin("DEMO_WAREHOUSE");
+        long suffix = SEQUENCE.incrementAndGet();
+        String idempotencyKey = "s6-sku-idem-" + suffix;
+        String payload = """
+            {
+              "sku_name": "S6 幂等 SKU %d",
+              "category_code": "S6_IDEMPOTENT",
+              "sku_type": "MATERIAL",
+              "unit": "件",
+              "spec_attrs": {"idem":"%d"},
+              "default_supplier_id": %d,
+              "cost_price_cent": 800,
+              "safety_stock": 1,
+              "status": "ACTIVE"
+            }
+            """.formatted(suffix, suffix, SUPPLIER_ID);
+
+        String firstResponse = mockMvc.perform(post("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long skuId = extractLong(firstResponse, "sku_id");
+
+        mockMvc.perform(post("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.sku_id").value(skuId));
+
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from inventory_sku where idempotency_key = ?",
+            Integer.class,
+            idempotencyKey)).isEqualTo(1);
+    }
+
+    @Test
+    void should_return_matching_total_for_s6_page_queries() throws Exception {
+        String studentToken = appLogin("DEMO_APP_STUDENT");
+        String warehouseToken = adminLogin("DEMO_WAREHOUSE");
+        long suffix = SEQUENCE.incrementAndGet();
+        resetStock(TEXTBOOK_SKU_ID, 100);
+
+        createManualStockFlow(warehouseToken, "s6-page-flow-in-" + suffix, TEXTBOOK_SKU_ID, "IN", 2);
+        createManualStockFlow(warehouseToken, "s6-page-flow-out-" + suffix, TEXTBOOK_SKU_ID, "OUT", 1);
+
+        createPurchase(warehouseToken, "s6-page-purchase-a-" + suffix, 1, 1000);
+        createPurchase(warehouseToken, "s6-page-purchase-b-" + suffix, 1, 1000);
+
+        long addressId = seedAddress();
+        createPaidPhysicalOrder(studentToken, addressId, "s6-page-shipment-a-" + suffix, 188800);
+        createPaidPhysicalOrder(studentToken, addressId, "s6-page-shipment-b-" + suffix, 188800);
+
+        mockMvc.perform(get("/api/admin/inventory/skus")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .param("page_no", "1")
+                .param("page_size", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records", hasSize(1)))
+            .andExpect(jsonPath("$.data.total", greaterThan(1)));
+
+        mockMvc.perform(get("/api/admin/inventory/stock-flows")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .param("sku_id", String.valueOf(TEXTBOOK_SKU_ID))
+                .param("page_no", "1")
+                .param("page_size", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records", hasSize(1)))
+            .andExpect(jsonPath("$.data.total").value(2));
+
+        mockMvc.perform(get("/api/admin/purchases")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .param("page_no", "1")
+                .param("page_size", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records", hasSize(1)))
+            .andExpect(jsonPath("$.data.total", greaterThan(1)));
+
+        mockMvc.perform(get("/api/admin/shipments")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .param("page_no", "1")
+                .param("page_size", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records", hasSize(1)))
+            .andExpect(jsonPath("$.data.total", greaterThan(1)));
+    }
+
+    @Test
+    void should_treat_duplicate_stock_flow_insert_as_existing_idempotent_flow() {
+        long suffix = SEQUENCE.incrementAndGet();
+        String idempotencyKey = "s6-stock-flow-insert-dup-" + suffix;
+        boolean inserted = insertStockFlowByReflection(260001000000L + suffix, "STF_DUP_A_" + suffix, TEXTBOOK_SKU_ID, idempotencyKey);
+
+        boolean duplicateInserted = insertStockFlowByReflection(
+            260001100000L + suffix,
+            "STF_DUP_B_" + suffix,
+            TEXTBOOK_SKU_ID,
+            idempotencyKey);
+
+        assertThat(inserted).isTrue();
+        assertThat(duplicateInserted).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from inventory_stock_flow where idempotency_key = ?",
+            Integer.class,
+            idempotencyKey)).isEqualTo(1);
+    }
+
+    @Test
+    void should_use_documented_purchase_approval_threshold() throws Exception {
+        String warehouseToken = adminLogin("DEMO_WAREHOUSE");
+        long suffix = SEQUENCE.incrementAndGet();
+
+        String purchaseResponse = createPurchase(warehouseToken, "s6-purchase-threshold-" + suffix, 1, 200000);
+
+        long purchaseId = extractLong(purchaseResponse, "purchase_id");
+        assertThat(findString("purchase_order", "purchase_status", purchaseId)).isEqualTo("APPROVING");
     }
 
     @Test
@@ -480,6 +613,46 @@ class S6FulfillmentInventoryPurchaseControllerTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
+    }
+
+    private void createManualStockFlow(String warehouseToken, String idempotencyKey, long skuId, String direction, int quantity) throws Exception {
+        mockMvc.perform(post("/api/admin/inventory/stock-flows")
+                .header("Authorization", "Bearer " + warehouseToken)
+                .header("Idempotency-Key", idempotencyKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "sku_id": %d,
+                      "direction": "%s",
+                      "quantity": %d,
+                      "biz_type": "MANUAL",
+                      "biz_no": "%s"
+                    }
+                    """.formatted(skuId, direction, quantity, idempotencyKey)))
+            .andExpect(status().isCreated());
+    }
+
+    private boolean insertStockFlowByReflection(long flowId, String flowNo, long skuId, String idempotencyKey) {
+        Boolean inserted = ReflectionTestUtils.invokeMethod(
+            supplyChainApplicationService,
+            "insertStockFlow",
+            flowId,
+            flowNo,
+            skuId,
+            "MANUAL",
+            flowId,
+            "S6-DUP-" + flowId,
+            (Long) null,
+            (Long) null,
+            (Long) null,
+            "IN",
+            1,
+            0,
+            1,
+            100000000004L,
+            idempotencyKey,
+            "duplicate insert regression");
+        return Boolean.TRUE.equals(inserted);
     }
 
     private void supplierConfirmAndShip(String supplierToken, long purchaseId, long suffix) throws Exception {

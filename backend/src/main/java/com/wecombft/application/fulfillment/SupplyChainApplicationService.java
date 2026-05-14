@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,8 +64,13 @@ public class SupplyChainApplicationService {
     @Transactional
     public CreationResult<SkuResponse> createSku(AdminPrincipal principal, String idempotencyKey, SkuCommand command) {
         requireAdmin(principal);
+        String key = requireIdempotencyKey(idempotencyKey);
+        Optional<SkuRow> existing = findSkuByIdempotencyKey(key);
+        if (existing.isPresent()) {
+            return new CreationResult<>(existing.get().toResponse(), false);
+        }
         String skuName = requireText(command == null ? null : command.skuName(), "SKU 名称不能为空");
-        String unit = requireText(command.unit(), "计量单位不能为空");
+        String unit = requireText(command == null ? null : command.unit(), "计量单位不能为空");
         String status = normalizeChoice(defaultString(command.status(), "ACTIVE"), List.of("ACTIVE", "DISABLED"), "SKU 状态非法");
         long skuId = idGenerator.nextId();
         String skuNo = "SKU" + skuId;
@@ -80,8 +86,8 @@ public class SupplyChainApplicationService {
                 insert into inventory_sku (
                     id, sku_no, sku_name, category_code, sku_type, unit, spec_attrs, spec_attrs_hash,
                     default_supplier_id, cost_price_cent, current_stock, locked_stock, available_stock,
-                    safety_stock, status, image_url, created_by, updated_by
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?)
+                    safety_stock, status, image_url, idempotency_key, created_by, updated_by
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?)
                 """,
                 skuId,
                 skuNo,
@@ -96,9 +102,14 @@ public class SupplyChainApplicationService {
                 nonNegative(command.safetyStock(), "安全库存不能为负"),
                 status,
                 blankToNull(command.imageUrl()),
+                key,
                 principal.userId(),
                 principal.userId());
         } catch (DuplicateKeyException duplicateKeyException) {
+            Optional<SkuRow> duplicateExisting = findSkuByIdempotencyKey(key);
+            if (duplicateExisting.isPresent()) {
+                return new CreationResult<>(duplicateExisting.get().toResponse(), false);
+            }
             throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "SKU 编号或规格已存在");
         }
         auditLogService.writeSuccess(
@@ -115,30 +126,33 @@ public class SupplyChainApplicationService {
 
     public SkuPage skus(String keyword, String status, Boolean warningOnly, Integer pageNo, Integer pageSize) {
         List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" where deleted_flag = 0");
+        if (keyword != null && !keyword.isBlank()) {
+            where.append(" and (sku_no like ? or sku_name like ?)");
+            args.add("%" + keyword.trim() + "%");
+            args.add("%" + keyword.trim() + "%");
+        }
+        if (status != null && !status.isBlank()) {
+            where.append(" and status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        if (Boolean.TRUE.equals(warningOnly)) {
+            where.append(" and available_stock <= safety_stock");
+        }
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        long total = countRows("select count(*) from inventory_sku" + where, args);
         StringBuilder sql = new StringBuilder(
             """
             select id, sku_no, sku_name, category_code, sku_type, unit, spec_attrs, default_supplier_id,
                    cost_price_cent, current_stock, locked_stock, available_stock, safety_stock, status, image_url
             from inventory_sku
-            where deleted_flag = 0
-            """);
-        if (keyword != null && !keyword.isBlank()) {
-            sql.append(" and (sku_no like ? or sku_name like ?)");
-            args.add("%" + keyword.trim() + "%");
-            args.add("%" + keyword.trim() + "%");
-        }
-        if (status != null && !status.isBlank()) {
-            sql.append(" and status = ?");
-            args.add(status.trim().toUpperCase());
-        }
-        if (Boolean.TRUE.equals(warningOnly)) {
-            sql.append(" and available_stock <= safety_stock");
-        }
-        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
-        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+            """)
+            .append(where);
+        List<Object> queryArgs = new ArrayList<>(args);
         sql.append(" order by created_at desc, id desc limit ? offset ?");
-        args.add(size);
-        args.add((page - 1) * size);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
         List<SkuResponse> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new SkuRow(
             rs.getLong("id"),
             rs.getString("sku_no"),
@@ -154,8 +168,8 @@ public class SupplyChainApplicationService {
             rs.getInt("available_stock"),
             rs.getInt("safety_stock"),
             rs.getString("status"),
-            rs.getString("image_url")).toResponse(), args.toArray());
-        return new SkuPage(records, page, size, records.size());
+            rs.getString("image_url")).toResponse(), queryArgs.toArray());
+        return new SkuPage(records, page, size, total);
     }
 
     @Transactional
@@ -169,7 +183,7 @@ public class SupplyChainApplicationService {
         long skuId = positive(command == null ? null : command.skuId(), "SKU 不能为空");
         int quantity = positiveInt(command.quantity(), "库存数量必须大于 0");
         String direction = normalizeChoice(command.direction(), List.of("IN", "OUT"), "库存方向非法");
-        SkuStock stock = requireSkuStock(skuId);
+        SkuStock stock = requireSkuStockForUpdate(skuId);
         int before = stock.availableStock();
         int after = "IN".equals(direction) ? before + quantity : before - quantity;
         if (after < 0) {
@@ -181,18 +195,7 @@ public class SupplyChainApplicationService {
         String bizType = normalizeText(defaultString(command.bizType(), "MANUAL"));
         String bizNo = defaultString(command.bizNo(), bizType + flowId);
         long bizId = command.bizId() == null ? flowId : command.bizId();
-        jdbcTemplate.update(
-            """
-            update inventory_sku
-            set current_stock = ?, available_stock = ?, updated_at = ?, updated_by = ?, version = version + 1
-            where id = ?
-            """,
-            after,
-            after,
-            LocalDateTime.now(),
-            principal.userId(),
-            skuId);
-        insertStockFlow(
+        boolean inserted = insertStockFlow(
             flowId,
             flowNo,
             skuId,
@@ -209,6 +212,20 @@ public class SupplyChainApplicationService {
             principal.userId(),
             key,
             command.remark());
+        if (!inserted) {
+            return new CreationResult<>(findStockFlowByIdempotency(key).orElseThrow().toResponse(), false);
+        }
+        jdbcTemplate.update(
+            """
+            update inventory_sku
+            set current_stock = ?, available_stock = ?, updated_at = ?, updated_by = ?, version = version + 1
+            where id = ?
+            """,
+            after,
+            after,
+            LocalDateTime.now(),
+            principal.userId(),
+            skuId);
         auditLogService.writeSuccess(
             principal,
             "INVENTORY",
@@ -223,58 +240,64 @@ public class SupplyChainApplicationService {
 
     public StockFlowPage stockFlows(Long skuId, Long orderId, Long shipmentId, Long purchaseId, Integer pageNo, Integer pageSize) {
         List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        appendLongFilter(where, args, "sku_id", skuId);
+        appendLongFilter(where, args, "order_id", orderId);
+        appendLongFilter(where, args, "shipment_id", shipmentId);
+        appendLongFilter(where, args, "purchase_id", purchaseId);
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        long total = countRows("select count(*) from inventory_stock_flow" + where, args);
         StringBuilder sql = new StringBuilder(
             """
             select id, flow_no, sku_id, biz_type, biz_id, biz_no, order_id, shipment_id, purchase_id,
                    direction, quantity, before_stock, after_stock, operator_user_id, occurred_at, idempotency_key, remark
             from inventory_stock_flow
-            where 1 = 1
-            """);
-        appendLongFilter(sql, args, "sku_id", skuId);
-        appendLongFilter(sql, args, "order_id", orderId);
-        appendLongFilter(sql, args, "shipment_id", shipmentId);
-        appendLongFilter(sql, args, "purchase_id", purchaseId);
-        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
-        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+            """)
+            .append(where);
+        List<Object> queryArgs = new ArrayList<>(args);
         sql.append(" order by occurred_at desc, id desc limit ? offset ?");
-        args.add(size);
-        args.add((page - 1) * size);
-        return new StockFlowPage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapStockFlow(rs).toResponse(), args.toArray()), page, size);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        return new StockFlowPage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapStockFlow(rs).toResponse(), queryArgs.toArray()), page, size, total);
     }
 
     public ShipmentPage shipments(String status, String orderNo, String trackingNo, Boolean exceptionFlag, Integer pageNo, Integer pageSize) {
         List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        if (status != null && !status.isBlank()) {
+            where.append(" and status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        if (orderNo != null && !orderNo.isBlank()) {
+            where.append(" and order_no like ?");
+            args.add("%" + orderNo.trim() + "%");
+        }
+        if (trackingNo != null && !trackingNo.isBlank()) {
+            where.append(" and tracking_no = ?");
+            args.add(trackingNo.trim());
+        }
+        if (exceptionFlag != null) {
+            where.append(" and exception_flag = ?");
+            args.add(exceptionFlag ? 1 : 0);
+        }
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        long total = countRows("select count(*) from fulfillment_shipment" + where, args);
         StringBuilder sql = new StringBuilder(
             """
             select id, shipment_no, order_id, order_no, student_id, status, receiver_snapshot,
                    logistics_company_code, logistics_company_name, tracking_no, waybill_file,
                    shipped_at, shipper_user_id, signed_at, exception_flag, exception_reason, created_at
             from fulfillment_shipment
-            where 1 = 1
-            """);
-        if (status != null && !status.isBlank()) {
-            sql.append(" and status = ?");
-            args.add(status.trim().toUpperCase());
-        }
-        if (orderNo != null && !orderNo.isBlank()) {
-            sql.append(" and order_no like ?");
-            args.add("%" + orderNo.trim() + "%");
-        }
-        if (trackingNo != null && !trackingNo.isBlank()) {
-            sql.append(" and tracking_no = ?");
-            args.add(trackingNo.trim());
-        }
-        if (exceptionFlag != null) {
-            sql.append(" and exception_flag = ?");
-            args.add(exceptionFlag ? 1 : 0);
-        }
-        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
-        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+            """)
+            .append(where);
+        List<Object> queryArgs = new ArrayList<>(args);
         sql.append(" order by created_at desc, id desc limit ? offset ?");
-        args.add(size);
-        args.add((page - 1) * size);
-        List<ShipmentListItem> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapShipment(rs).toListItem(), args.toArray());
-        return new ShipmentPage(records, page, size, records.size());
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        List<ShipmentListItem> records = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapShipment(rs).toListItem(), queryArgs.toArray());
+        return new ShipmentPage(records, page, size, total);
     }
 
     public ShipmentDetailResponse shipmentDetail(long shipmentId) {
@@ -346,7 +369,7 @@ public class SupplyChainApplicationService {
         ensureStockEnough(principal, shipment, items);
 
         LocalDateTime shippedAt = LocalDateTime.now();
-        jdbcTemplate.update(
+        int shipmentUpdated = jdbcTemplate.update(
             """
             update fulfillment_shipment
             set status = 'SHIPPED',
@@ -374,6 +397,9 @@ public class SupplyChainApplicationService {
             shippedAt,
             principal.userId(),
             shipmentId);
+        if (shipmentUpdated == 0) {
+            return requireShipment(shipmentId).toActionResponse(stockFlowIdsForShipment(shipmentId));
+        }
 
         List<Long> flowIds = new ArrayList<>();
         for (ShipmentItemRow item : items) {
@@ -597,6 +623,14 @@ public class SupplyChainApplicationService {
 
     public PurchasePage purchases(String status, Integer pageNo, Integer pageSize) {
         List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" where 1 = 1");
+        if (status != null && !status.isBlank()) {
+            where.append(" and purchase_status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        long total = countRows("select count(*) from purchase_order" + where, args);
         StringBuilder sql = new StringBuilder(
             """
             select id, purchase_no, supplier_id, applicant_user_id, total_amount_cent, purchase_status,
@@ -605,18 +639,13 @@ public class SupplyChainApplicationService {
                    received_at, receiver_user_id, idempotency_key, input_invoice_no,
                    input_invoice_amount_cent, input_invoice_file, created_at
             from purchase_order
-            where 1 = 1
-            """);
-        if (status != null && !status.isBlank()) {
-            sql.append(" and purchase_status = ?");
-            args.add(status.trim().toUpperCase());
-        }
-        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
-        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+            """)
+            .append(where);
+        List<Object> queryArgs = new ArrayList<>(args);
         sql.append(" order by created_at desc, id desc limit ? offset ?");
-        args.add(size);
-        args.add((page - 1) * size);
-        return new PurchasePage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapPurchase(rs).toSummary(), args.toArray()), page, size);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        return new PurchasePage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapPurchase(rs).toSummary(), queryArgs.toArray()), page, size, total);
     }
 
     public PurchaseResponse purchaseDetail(long purchaseId) {
@@ -825,6 +854,21 @@ public class SupplyChainApplicationService {
     public PurchasePage supplierPurchases(String authorizationHeader, String status, Integer pageNo, Integer pageSize) {
         SupplierSession supplier = requireSupplierSession(authorizationHeader);
         List<Object> args = new ArrayList<>();
+        StringBuilder where = new StringBuilder(
+            """
+            where supplier_id = ?
+              and purchase_status <> 'APPROVING'
+              and purchase_status <> 'APPROVAL_REJECTED'
+              and purchase_status <> 'CANCELED'
+            """);
+        args.add(supplier.supplierId());
+        if (status != null && !status.isBlank()) {
+            where.append(" and purchase_status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        long total = countRows("select count(*) from purchase_order " + where, args);
         StringBuilder sql = new StringBuilder(
             """
             select id, purchase_no, supplier_id, applicant_user_id, total_amount_cent, purchase_status,
@@ -833,22 +877,13 @@ public class SupplyChainApplicationService {
                    received_at, receiver_user_id, idempotency_key, input_invoice_no,
                    input_invoice_amount_cent, input_invoice_file, created_at
             from purchase_order
-            where supplier_id = ?
-              and purchase_status <> 'APPROVING'
-              and purchase_status <> 'APPROVAL_REJECTED'
-              and purchase_status <> 'CANCELED'
-            """);
-        args.add(supplier.supplierId());
-        if (status != null && !status.isBlank()) {
-            sql.append(" and purchase_status = ?");
-            args.add(status.trim().toUpperCase());
-        }
-        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
-        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+            """)
+            .append(where);
+        List<Object> queryArgs = new ArrayList<>(args);
         sql.append(" order by created_at desc, id desc limit ? offset ?");
-        args.add(size);
-        args.add((page - 1) * size);
-        return new PurchasePage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapPurchase(rs).toSummary(), args.toArray()), page, size);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+        return new PurchasePage(jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapPurchase(rs).toSummary(), queryArgs.toArray()), page, size, total);
     }
 
     public PurchaseResponse supplierPurchaseDetail(String authorizationHeader, long purchaseId) {
@@ -974,11 +1009,33 @@ public class SupplyChainApplicationService {
         if (existing.isPresent()) {
             return existing.get();
         }
-        SkuStock stock = requireSkuStock(item.skuId());
+        SkuStock stock = requireSkuStockForUpdate(item.skuId());
         int before = stock.availableStock();
         int after = before - item.quantity();
         if (after < 0) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVENTORY_NOT_ENOUGH", "库存不足：" + stock.skuName());
+        }
+        long flowId = idGenerator.nextId();
+        String flowNo = "STF" + flowId;
+        boolean inserted = insertStockFlow(
+            flowId,
+            flowNo,
+            item.skuId(),
+            "SHIPMENT",
+            shipment.id(),
+            shipment.shipmentNo(),
+            shipment.orderId(),
+            shipment.id(),
+            null,
+            "OUT",
+            item.quantity(),
+            before,
+            after,
+            principal.userId(),
+            key,
+            "发货出库");
+        if (!inserted) {
+            return findStockFlowByIdempotency(key).orElseThrow();
         }
         jdbcTemplate.update(
             "update inventory_sku set current_stock = ?, available_stock = ?, updated_at = ?, updated_by = ?, version = version + 1 where id = ?",
@@ -987,9 +1044,6 @@ public class SupplyChainApplicationService {
             LocalDateTime.now(),
             principal.userId(),
             item.skuId());
-        long flowId = idGenerator.nextId();
-        String flowNo = "STF" + flowId;
-        insertStockFlow(flowId, flowNo, item.skuId(), "SHIPMENT", shipment.id(), shipment.shipmentNo(), shipment.orderId(), shipment.id(), null, "OUT", item.quantity(), before, after, principal.userId(), key, "发货出库");
         return findStockFlowByIdempotency(key).orElseThrow();
     }
 
@@ -999,9 +1053,31 @@ public class SupplyChainApplicationService {
         if (existing.isPresent()) {
             return existing.get();
         }
-        SkuStock stock = requireSkuStock(item.skuId());
+        SkuStock stock = requireSkuStockForUpdate(item.skuId());
         int before = stock.availableStock();
         int after = before + item.quantity();
+        long flowId = idGenerator.nextId();
+        String flowNo = "STF" + flowId;
+        boolean inserted = insertStockFlow(
+            flowId,
+            flowNo,
+            item.skuId(),
+            "PURCHASE_RECEIPT",
+            purchase.id(),
+            receiptNo,
+            null,
+            null,
+            purchase.id(),
+            "IN",
+            item.quantity(),
+            before,
+            after,
+            principal.userId(),
+            key,
+            "采购入库");
+        if (!inserted) {
+            return findStockFlowByIdempotency(key).orElseThrow();
+        }
         jdbcTemplate.update(
             "update inventory_sku set current_stock = ?, available_stock = ?, updated_at = ?, updated_by = ?, version = version + 1 where id = ?",
             after,
@@ -1009,13 +1085,10 @@ public class SupplyChainApplicationService {
             LocalDateTime.now(),
             principal.userId(),
             item.skuId());
-        long flowId = idGenerator.nextId();
-        String flowNo = "STF" + flowId;
-        insertStockFlow(flowId, flowNo, item.skuId(), "PURCHASE_RECEIPT", purchase.id(), receiptNo, null, null, purchase.id(), "IN", item.quantity(), before, after, principal.userId(), key, "采购入库");
         return findStockFlowByIdempotency(key).orElseThrow();
     }
 
-    private void insertStockFlow(
+    private boolean insertStockFlow(
         long flowId,
         String flowNo,
         long skuId,
@@ -1033,31 +1106,39 @@ public class SupplyChainApplicationService {
         String idempotencyKey,
         String remark
     ) {
-        jdbcTemplate.update(
-            """
-            insert into inventory_stock_flow (
-                id, flow_no, sku_id, biz_type, biz_id, biz_no, order_id, shipment_id, purchase_id,
-                direction, quantity, before_stock, after_stock, operator_user_id, occurred_at,
-                idempotency_key, remark
-            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            flowId,
-            flowNo,
-            skuId,
-            bizType,
-            bizId,
-            bizNo,
-            orderId,
-            shipmentId,
-            purchaseId,
-            direction,
-            quantity,
-            before,
-            after,
-            operatorUserId,
-            LocalDateTime.now(),
-            idempotencyKey,
-            blankToNull(remark));
+        try {
+            jdbcTemplate.update(
+                """
+                insert into inventory_stock_flow (
+                    id, flow_no, sku_id, biz_type, biz_id, biz_no, order_id, shipment_id, purchase_id,
+                    direction, quantity, before_stock, after_stock, operator_user_id, occurred_at,
+                    idempotency_key, remark
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                flowId,
+                flowNo,
+                skuId,
+                bizType,
+                bizId,
+                bizNo,
+                orderId,
+                shipmentId,
+                purchaseId,
+                direction,
+                quantity,
+                before,
+                after,
+                operatorUserId,
+                LocalDateTime.now(),
+                idempotencyKey,
+                blankToNull(remark));
+            return true;
+        } catch (DuplicateKeyException duplicateKeyException) {
+            if (findStockFlowByIdempotency(idempotencyKey).isPresent()) {
+                return false;
+            }
+            throw duplicateKeyException;
+        }
     }
 
     private Long insertTraceIfAbsent(ShipmentRow shipment, LogisticsTraceCommand command, String rawSnapshot) {
@@ -1197,12 +1278,62 @@ public class SupplyChainApplicationService {
             .findFirst();
     }
 
+    private Optional<SkuRow> findSkuByIdempotencyKey(String idempotencyKey) {
+        return jdbcTemplate.query(
+            """
+            select id, sku_no, sku_name, category_code, sku_type, unit, spec_attrs, default_supplier_id,
+                   cost_price_cent, current_stock, locked_stock, available_stock, safety_stock, status, image_url
+            from inventory_sku
+            where idempotency_key = ? and deleted_flag = 0
+            """,
+            (rs, rowNum) -> new SkuRow(
+                rs.getLong("id"),
+                rs.getString("sku_no"),
+                rs.getString("sku_name"),
+                rs.getString("category_code"),
+                rs.getString("sku_type"),
+                rs.getString("unit"),
+                rs.getString("spec_attrs"),
+                nullableLong(rs, "default_supplier_id"),
+                nullableLong(rs, "cost_price_cent"),
+                rs.getInt("current_stock"),
+                rs.getInt("locked_stock"),
+                rs.getInt("available_stock"),
+                rs.getInt("safety_stock"),
+                rs.getString("status"),
+                rs.getString("image_url")),
+            idempotencyKey)
+            .stream()
+            .findFirst();
+    }
+
     private SkuStock requireSkuStock(long skuId) {
         return jdbcTemplate.query(
             """
             select id, sku_no, sku_name, status, current_stock, available_stock
             from inventory_sku
             where id = ? and deleted_flag = 0
+            """,
+            (rs, rowNum) -> new SkuStock(
+                rs.getLong("id"),
+                rs.getString("sku_no"),
+                rs.getString("sku_name"),
+                rs.getString("status"),
+                rs.getInt("current_stock"),
+                rs.getInt("available_stock")),
+            skuId)
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "SKU 不存在"));
+    }
+
+    private SkuStock requireSkuStockForUpdate(long skuId) {
+        return jdbcTemplate.query(
+            """
+            select id, sku_no, sku_name, status, current_stock, available_stock
+            from inventory_sku
+            where id = ? and deleted_flag = 0
+            for update
             """,
             (rs, rowNum) -> new SkuStock(
                 rs.getLong("id"),
@@ -1434,7 +1565,7 @@ public class SupplyChainApplicationService {
             (rs, rowNum) -> Long.parseLong(rs.getString("config_value")))
             .stream()
             .findFirst()
-            .orElse(500000L);
+            .orElse(100000L);
     }
 
     private Optional<PurchaseRow> findPurchaseByIdempotency(String idempotencyKey) {
@@ -1610,6 +1741,11 @@ public class SupplyChainApplicationService {
             sql.append(" and ").append(columnName).append(" = ?");
             args.add(value);
         }
+    }
+
+    private long countRows(String sql, List<Object> args) {
+        Long total = jdbcTemplate.queryForObject(sql, Long.class, args.toArray());
+        return total == null ? 0 : total;
     }
 
     private void requireAdmin(AdminPrincipal principal) {
@@ -1789,7 +1925,7 @@ public class SupplyChainApplicationService {
     public record PurchaseItemCommand(Long skuId, Integer quantity, Long unitPriceCent) {
     }
 
-    public record ApprovalActionCommand(String action, String comment) {
+    public record ApprovalActionCommand(String action, @JsonAlias("approval_comment") String comment) {
     }
 
     public record SupplierConfirmCommand(LocalDate expectedArrivalDate, String remark) {
@@ -1810,7 +1946,7 @@ public class SupplyChainApplicationService {
     public record PurchaseInputInvoiceCommand(String inputInvoiceNo, Long inputInvoiceAmountCent, String inputInvoiceFile) {
     }
 
-    public record SkuPage(List<SkuResponse> records, int pageNo, int pageSize, int total) {
+    public record SkuPage(List<SkuResponse> records, int pageNo, int pageSize, long total) {
     }
 
     public record SkuResponse(
@@ -1832,7 +1968,7 @@ public class SupplyChainApplicationService {
     ) {
     }
 
-    public record StockFlowPage(List<StockFlowResponse> records, int pageNo, int pageSize) {
+    public record StockFlowPage(List<StockFlowResponse> records, int pageNo, int pageSize, long total) {
     }
 
     public record StockFlowResponse(
@@ -1856,7 +1992,7 @@ public class SupplyChainApplicationService {
     ) {
     }
 
-    public record ShipmentPage(List<ShipmentListItem> records, int pageNo, int pageSize, int total) {
+    public record ShipmentPage(List<ShipmentListItem> records, int pageNo, int pageSize, long total) {
     }
 
     public record ShipmentListItem(
@@ -1908,7 +2044,7 @@ public class SupplyChainApplicationService {
     public record LogisticsCallbackResponse(String processingStatus, Long shipmentId, Long orderId, String trackingNo, String status, String failureReason) {
     }
 
-    public record PurchasePage(List<PurchaseSummary> records, int pageNo, int pageSize) {
+    public record PurchasePage(List<PurchaseSummary> records, int pageNo, int pageSize, long total) {
     }
 
     public record PurchaseSummary(long purchaseId, String purchaseNo, long supplierId, long totalAmountCent, String purchaseStatus, String inputInvoiceStatus, Long approvalId, LocalDateTime createdAt) {
