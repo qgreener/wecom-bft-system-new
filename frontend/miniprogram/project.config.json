@@ -1,0 +1,11 @@
+{
+  "appid": "WECHAT_MP_APP_ID_PLACEHOLDER",
+  "projectname": "wecom-bft-miniprogram",
+  "miniprogramRoot": "src/",
+  "compileType": "miniprogram",
+  "setting": {
+    "es6": true,
+    "minified": false,
+    "enhance": true
+  }
+}

@@ -1,0 +1,15 @@
+spring:
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+
+app:
+  environment: dev
+
+integration:
+  default-mode: mock
+  payment-mode: mock
+  refund-mode: mock
+  logistics-mode: mock
+  invoice-mode: mock
+  wecom-mode: mock
+  message-mode: mock

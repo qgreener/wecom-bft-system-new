@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "WeCom BFT",
+    "navigationBarBackgroundColor": "#111827",
+    "navigationBarTextStyle": "white"
+  }
+}

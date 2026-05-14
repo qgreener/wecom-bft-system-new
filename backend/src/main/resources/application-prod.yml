@@ -1,0 +1,33 @@
+server:
+  port: ${SERVER_PORT}
+
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+app:
+  name: ${APP_NAME}
+  version: ${APP_VERSION}
+  environment: ${APP_ENV}
+  public-base-url: ${APP_PUBLIC_BASE_URL}
+  callback-public-base-url: ${APP_CALLBACK_PUBLIC_BASE_URL}
+
+file:
+  storage-type: ${FILE_STORAGE_TYPE}
+  upload-base-path: ${FILE_UPLOAD_BASE_PATH}
+
+integration:
+  default-mode: ${INTEGRATION_DEFAULT_MODE}
+  payment-mode: ${INTEGRATION_PAYMENT_MODE}
+  refund-mode: ${INTEGRATION_REFUND_MODE}
+  logistics-mode: ${INTEGRATION_LOGISTICS_MODE}
+  invoice-mode: ${INTEGRATION_INVOICE_MODE}
+  wecom-mode: ${INTEGRATION_WECOM_MODE}
+  message-mode: ${INTEGRATION_MESSAGE_MODE}

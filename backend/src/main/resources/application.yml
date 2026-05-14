@@ -1,0 +1,52 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ${APP_NAME:wecom-bft-new-system}
+  profiles:
+    default: dev
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:wecom_bft_new}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:wecom_bft_app}
+    password: ${MYSQL_PASSWORD:MYSQL_PASSWORD_PLACEHOLDER}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+app:
+  name: ${APP_NAME:wecom-bft-new-system}
+  version: ${APP_VERSION:0.1.0-SNAPSHOT}
+  environment: ${APP_ENV:dev}
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
+  callback-public-base-url: ${APP_CALLBACK_PUBLIC_BASE_URL:http://localhost:8080}
+  maintenance-mode: ${APP_MAINTENANCE_MODE:false}
+
+file:
+  storage-type: ${FILE_STORAGE_TYPE:local}
+  upload-base-path: ${FILE_UPLOAD_BASE_PATH:./storage/files}
+  max-upload-size-mb: ${FILE_MAX_UPLOAD_SIZE_MB:20}
+
+integration:
+  default-mode: ${INTEGRATION_DEFAULT_MODE:mock}
+  payment-mode: ${INTEGRATION_PAYMENT_MODE:mock}
+  refund-mode: ${INTEGRATION_REFUND_MODE:mock}
+  logistics-mode: ${INTEGRATION_LOGISTICS_MODE:mock}
+  invoice-mode: ${INTEGRATION_INVOICE_MODE:mock}
+  wecom-mode: ${INTEGRATION_WECOM_MODE:mock}
+  message-mode: ${INTEGRATION_MESSAGE_MODE:mock}
+
+logging:
+  pattern:
+    level: "%5p [%X{trace_id:-no-trace}]"

@@ -1,0 +1,15 @@
+[Unit]
+Description=WeCom BFT Backend
+After=network.target
+
+[Service]
+Type=simple
+User=wecom-bft
+WorkingDirectory=/opt/wecom-bft-new-system/backend
+EnvironmentFile=/etc/wecom-bft-new-system/.env
+ExecStart=/usr/bin/java -jar /opt/wecom-bft-new-system/backend/wecom-bft-backend.jar
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
