@@ -63,10 +63,12 @@ public class PermissionCatalog {
     private DataScopePolicy chooseWidest(DataScopePolicy current, DataScopePolicy candidate) {
         List<String> order = List.of(
             "NONE",
+            "OWN_COURSE",
             "OWN_OR_TEAM",
             "AFTER_SALE",
             "SUPPLY_CHAIN",
             "FINANCE_AUTHORIZED",
+            "COURSE_ALL",
             "ALL"
         );
         int currentIndex = order.indexOf(current.scopeCode());
@@ -119,6 +121,47 @@ public class PermissionCatalog {
             List.of(
                 new FieldMaskPolicy("student_mobile", "学员手机号", "OWN_FULL_OTHER_MASK"),
                 new FieldMaskPolicy("lead_mobile", "线索手机号", "OWN_FULL_OTHER_MASK"),
+                new FieldMaskPolicy("invoice_tax_no", "发票税号", "HIDE")
+            )
+        ));
+        result.put("EDU_ADMIN", new RolePolicy(
+            "EDU_ADMIN",
+            "COURSE_ALL",
+            "全部课程、课节和学习数据范围",
+            Set.of(
+                "course:spec:write",
+                "course:lesson:read",
+                "student:read",
+                "report:learning:read"
+            ),
+            List.of(
+                new MenuPolicy("home.dashboard", "首页", null, 10),
+                new MenuPolicy("course.manage", "课程管理", "course", 120),
+                new MenuPolicy("course.lesson-content", "课节内容", "course", 130),
+                new MenuPolicy("report.learning", "学习报表", "report", 710)
+            ),
+            List.of(
+                new FieldMaskPolicy("student_mobile", "学员手机号", "MASKED_ONLY"),
+                new FieldMaskPolicy("learning_record", "学习记录", "LEARNING_RECORD_FULL"),
+                new FieldMaskPolicy("invoice_tax_no", "发票税号", "HIDE")
+            )
+        ));
+        result.put("TEACHER", new RolePolicy(
+            "TEACHER",
+            "OWN_COURSE",
+            "本人负责课程、课节和学习记录范围",
+            Set.of(
+                "course:lesson:write",
+                "course:lesson:read",
+                "learning:record:read"
+            ),
+            List.of(
+                new MenuPolicy("home.dashboard", "首页", null, 10),
+                new MenuPolicy("course.lesson-content", "课节内容", "course", 130)
+            ),
+            List.of(
+                new FieldMaskPolicy("student_mobile", "学员手机号", "MASKED_ONLY"),
+                new FieldMaskPolicy("learning_record", "学习记录", "LEARNING_RECORD_FULL"),
                 new FieldMaskPolicy("invoice_tax_no", "发票税号", "HIDE")
             )
         ));

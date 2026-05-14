@@ -3,6 +3,7 @@ package com.wecombft.application.iam;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.wecombft.infrastructure.security.AdminPrincipal;
@@ -10,6 +11,7 @@ import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.infrastructure.security.PermissionCatalog.DataScopePolicy;
 import com.wecombft.infrastructure.security.PermissionCatalog.FieldMaskPolicy;
 import com.wecombft.infrastructure.security.PermissionCatalog.MenuPolicy;
+import com.wecombft.shared.web.ApiException;
 
 @Service
 public class AdminAuthApplicationService {
@@ -28,6 +30,13 @@ public class AdminAuthApplicationService {
             "S3_DEMO_TOKEN",
             OffsetDateTime.now().plusSeconds(7200)
         );
+    }
+
+    public TestLoginResponse mockWecomLogin(String authCode) {
+        if (authCode == null || !authCode.startsWith("mock:") || authCode.length() == "mock:".length()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "S3 仅支持 mock 企业微信登录码");
+        }
+        return testLogin(authCode.substring("mock:".length()).trim());
     }
 
     public CurrentUserResponse currentUser(String authorizationHeader) {

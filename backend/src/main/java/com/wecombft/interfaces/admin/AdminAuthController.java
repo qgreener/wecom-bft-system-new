@@ -31,6 +31,13 @@ public class AdminAuthController {
             TraceIds.currentOrCreate()));
     }
 
+    @PostMapping("/wecom-login")
+    public ResponseEntity<ApiResponse<TestLoginResponse>> wecomLogin(@RequestBody WecomLoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            authApplicationService.mockWecomLogin(request.authCode()),
+            TraceIds.currentOrCreate()));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<CurrentUserResponse>> me(@RequestHeader("Authorization") String authorization) {
         return ResponseEntity.ok(ApiResponse.ok(
@@ -39,5 +46,8 @@ public class AdminAuthController {
     }
 
     public record TestLoginRequest(String userNo) {
+    }
+
+    public record WecomLoginRequest(String authCode, String redirectUri) {
     }
 }

@@ -95,6 +95,21 @@ public class IamRepository {
             .findFirst();
     }
 
+    public List<ApprovalRecord> findApprovals(String approvalType, String status) {
+        StringBuilder sql = new StringBuilder(
+            """
+            select id, approval_no, approval_type, title, applicant_user_id, approver_user_id,
+                   related_object_no, status, submit_reason, approval_comment, submitted_at, finished_at
+            from approval_record
+            where 1 = 1
+            """);
+        List<Object> args = new java.util.ArrayList<>();
+        appendEquals(sql, args, "approval_type", approvalType);
+        appendEquals(sql, args, "status", status);
+        sql.append(" order by submitted_at desc, id desc");
+        return jdbcTemplate.query(sql.toString(), approvalMapper(), args.toArray());
+    }
+
     public ApprovalRecord insertRoleApplication(
         long approvalId,
         String approvalNo,
@@ -188,6 +203,14 @@ public class IamRepository {
             LocalDateTime.now(),
             grantedBy,
             grantedBy);
+    }
+
+    private void appendEquals(StringBuilder sql, List<Object> args, String columnName, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        sql.append(" and ").append(columnName).append(" = ?");
+        args.add(value);
     }
 
     private RowMapper<UserRecord> userMapper() {

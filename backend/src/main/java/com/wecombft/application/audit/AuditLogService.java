@@ -57,6 +57,39 @@ public class AuditLogService {
         return auditId;
     }
 
+    public long writeFailure(
+        AdminPrincipal principal,
+        String operationModule,
+        String operationType,
+        String targetType,
+        Long targetId,
+        String targetNo,
+        Long orderId,
+        String failureReason
+    ) {
+        long auditId = idGenerator.nextId();
+        auditLogRepository.insert(new AuditWriteCommand(
+            auditId,
+            TraceIds.currentOrCreate(),
+            principal == null ? null : principal.userId(),
+            principal == null ? null : principal.displayName(),
+            operationModule,
+            operationType,
+            targetType,
+            targetId,
+            targetNo,
+            orderId,
+            null,
+            null,
+            "FAILED",
+            sanitizeSnapshot(failureReason),
+            null,
+            null,
+            LocalDateTime.now()
+        ));
+        return auditId;
+    }
+
     public AuditPage search(AuditQuery query) {
         List<AuditLogRecord> records = auditLogRepository.search(query);
         return new AuditPage(records, query.pageNo(), query.pageSize(), auditLogRepository.count(query));

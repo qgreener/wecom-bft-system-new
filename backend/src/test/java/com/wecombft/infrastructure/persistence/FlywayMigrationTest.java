@@ -133,13 +133,17 @@ class FlywayMigrationTest {
         Integer roleCount = jdbcTemplate.queryForObject(
                 """
                 select count(*) from sys_role
-                where role_code in ('SUPER_ADMIN', 'OPS', 'SERVICE', 'WAREHOUSE', 'ACCOUNTING')
+                where role_code in ('SUPER_ADMIN', 'EDU_ADMIN', 'TEACHER', 'OPS', 'SERVICE', 'WAREHOUSE', 'ACCOUNTING')
                 """,
                 Integer.class);
         Integer demoUserCount = jdbcTemplate.queryForObject(
                 """
                 select count(*) from sys_user
-                where user_no in ('DEMO_ADMIN', 'DEMO_OPS', 'DEMO_SERVICE', 'DEMO_WAREHOUSE', 'DEMO_ACCOUNTING', 'DEMO_UNASSIGNED')
+                where user_no in (
+                    'DEMO_ADMIN', 'DEMO_EDU_ADMIN', 'DEMO_TEACHER', 'DEMO_OPS',
+                    'DEMO_SERVICE', 'DEMO_WAREHOUSE', 'DEMO_ACCOUNTING',
+                    'DEMO_UNASSIGNED', 'DEMO_APP_STUDENT', 'DEMO_SUPPLIER'
+                )
                 """,
                 Integer.class);
         Integer grantCount = jdbcTemplate.queryForObject(
@@ -157,10 +161,32 @@ class FlywayMigrationTest {
                 """,
                 Integer.class);
 
-        assertThat(roleCount).isEqualTo(5);
-        assertThat(demoUserCount).isEqualTo(6);
-        assertThat(grantCount).isGreaterThanOrEqualTo(5);
+        assertThat(roleCount).isEqualTo(7);
+        assertThat(demoUserCount).isEqualTo(10);
+        assertThat(grantCount).isGreaterThanOrEqualTo(7);
         assertThat(sensitiveConfigCount).isGreaterThanOrEqualTo(3);
+    }
+
+    @Test
+    void should_seed_s3_gap_completion_identity_and_config_data() {
+        Integer studentCount = jdbcTemplate.queryForObject(
+                "select count(*) from edu_student where student_no = 'STU_S3_DEMO'",
+                Integer.class);
+        Integer supplierCount = jdbcTemplate.queryForObject(
+                "select count(*) from supplier where supplier_no = 'SUP_S3_DEMO'",
+                Integer.class);
+        Integer configCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from sys_config
+                where (config_group = 'PURCHASE' and config_key = 'PURCHASE_APPROVAL_THRESHOLD_CENT')
+                   or (config_group = 'FILE' and config_key = 'FILE_MAX_UPLOAD_SIZE_MB')
+                   or (config_group = 'NOTIFICATION' and config_key = 'WECOM_CARD_MOCK_ENABLED')
+                """,
+                Integer.class);
+
+        assertThat(studentCount).isEqualTo(1);
+        assertThat(supplierCount).isEqualTo(1);
+        assertThat(configCount).isEqualTo(3);
     }
 
     @Test

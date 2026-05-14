@@ -10,6 +10,8 @@ import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.infrastructure.persistence.iam.ApprovalRecord;
 import com.wecombft.infrastructure.persistence.iam.IamRepository;
 import com.wecombft.infrastructure.persistence.iam.RoleRecord;
+import com.wecombft.infrastructure.persistence.notification.NotificationRepository;
+import com.wecombft.infrastructure.persistence.notification.NotificationRepository.NotificationWriteCommand;
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.id.IdGenerator;
@@ -22,17 +24,20 @@ public class RoleApplicationService {
     private final IamRepository iamRepository;
     private final AuditLogService auditLogService;
     private final IdGenerator idGenerator;
+    private final NotificationRepository notificationRepository;
 
     public RoleApplicationService(
         AdminSessionService adminSessionService,
         IamRepository iamRepository,
         AuditLogService auditLogService,
-        IdGenerator idGenerator
+        IdGenerator idGenerator,
+        NotificationRepository notificationRepository
     ) {
         this.adminSessionService = adminSessionService;
         this.iamRepository = iamRepository;
         this.auditLogService = auditLogService;
         this.idGenerator = idGenerator;
+        this.notificationRepository = notificationRepository;
     }
 
     @Transactional
@@ -53,6 +58,7 @@ public class RoleApplicationService {
                 principal.user(),
                 role,
                 command.submitReason()));
+        createRoleApplicationNotifications(principal, approval, role);
 
         auditLogService.writeSuccess(
             principal,
@@ -72,6 +78,15 @@ public class RoleApplicationService {
         ApprovalRecord approval = iamRepository.findApprovalById(approvalId)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "审批记录不存在"));
         if (!"PENDING".equals(approval.status())) {
+            auditLogService.writeFailure(
+                approver,
+                "SECURITY",
+                "STATE_CONFLICT",
+                "ROLE_APPLICATION",
+                approval.id(),
+                approval.approvalNo(),
+                null,
+                "审批记录不是待审批状态：" + approval.status());
             throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "审批记录不是待审批状态");
         }
         String action = command.action() == null ? "" : command.action().trim().toUpperCase();
@@ -98,6 +113,50 @@ public class RoleApplicationService {
             null,
             "{\"status\":\"" + status + "\",\"role_code\":\"" + approval.relatedObjectNo() + "\"}");
         return toResponse(finished);
+    }
+
+    private void createRoleApplicationNotifications(
+        AdminPrincipal applicant,
+        ApprovalRecord approval,
+        RoleRecord role
+    ) {
+        for (Long approverUserId : notificationRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")) {
+            insertNotification(
+                approverUserId,
+                "IN_APP",
+                applicant,
+                approval,
+                role);
+            insertNotification(
+                approverUserId,
+                "WECOM_CARD",
+                applicant,
+                approval,
+                role);
+        }
+    }
+
+    private void insertNotification(
+        Long approverUserId,
+        String channel,
+        AdminPrincipal applicant,
+        ApprovalRecord approval,
+        RoleRecord role
+    ) {
+        long notificationId = idGenerator.nextId();
+        notificationRepository.insertIfAbsent(new NotificationWriteCommand(
+            notificationId,
+            "NTF" + notificationId,
+            approverUserId,
+            channel,
+            "ROLE_APPLICATION",
+            "ROLE_APPLICATION_MINIMAL",
+            "角色申请待审批",
+            applicant.displayName() + " 申请角色 " + role.roleName(),
+            "ROLE_APPLICATION",
+            approval.id(),
+            "ROLE_APPLICATION:" + approval.id() + ":" + channel,
+            applicant.userId()));
     }
 
     private ApprovalResponse toResponse(ApprovalRecord approval) {
