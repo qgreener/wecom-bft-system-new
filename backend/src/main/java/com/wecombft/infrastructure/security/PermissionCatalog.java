@@ -163,7 +163,7 @@ public class PermissionCatalog {
             List.of(
                 new FieldMaskPolicy("receiver_mobile", "收货手机号", "SHIPPING_ONLY_FULL"),
                 new FieldMaskPolicy("receiver_address", "收货地址", "SHIPPING_ONLY_FULL"),
-                new FieldMaskPolicy("paid_amount", "订单金额", "HIDE")
+                new FieldMaskPolicy("paid_amount_cent", "订单金额", "HIDE")
             )
         ));
         result.put("ACCOUNTING", new RolePolicy(
@@ -185,7 +185,7 @@ public class PermissionCatalog {
             List.of(
                 new FieldMaskPolicy("student_mobile", "学员手机号", "MASKED_ONLY"),
                 new FieldMaskPolicy("invoice_tax_no", "发票税号", "FINANCE_ONLY_FULL"),
-                new FieldMaskPolicy("paid_amount", "订单金额", "FINANCE_ONLY_FULL")
+                new FieldMaskPolicy("paid_amount_cent", "订单金额", "FINANCE_ONLY_FULL")
             )
         ));
         return Map.copyOf(result);
