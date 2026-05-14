@@ -7,11 +7,13 @@
     "build": "pnpm -r --filter \"./frontend/**\" build",
     "build:admin": "pnpm --filter @wecom-bft/admin build",
     "build:h5": "pnpm --filter @wecom-bft/wecom-sidebar-h5 build && pnpm --filter @wecom-bft/supplier-h5 build && pnpm --filter @wecom-bft/lead-h5 build",
+    "ci": "pnpm backend:test && pnpm frontend:test && pnpm build",
     "dev:admin": "pnpm --filter @wecom-bft/admin dev",
     "dev:wecom-sidebar": "pnpm --filter @wecom-bft/wecom-sidebar-h5 dev",
     "dev:supplier": "pnpm --filter @wecom-bft/supplier-h5 dev",
     "dev:lead": "pnpm --filter @wecom-bft/lead-h5 dev",
-    "backend:test": "mvn -f backend/pom.xml test"
+    "backend:test": "mvn -f backend/pom.xml test",
+    "frontend:test": "pnpm -r --filter \"./frontend/**\" --if-present test"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

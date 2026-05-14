@@ -10,4 +10,6 @@ if (-not $env:JAVA_HOME) {
 
 mvn -f backend/pom.xml test
 pnpm install
+pnpm frontend:test
 pnpm build
+& "$PSScriptRoot\verify-s1-frontends.ps1" -Apps admin,lead
