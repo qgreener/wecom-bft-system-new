@@ -13,6 +13,7 @@ import com.wecombft.application.iam.RoleApplicationService;
 import com.wecombft.application.iam.RoleApplicationService.ApprovalActionCommand;
 import com.wecombft.application.iam.RoleApplicationService.ApprovalResponse;
 import com.wecombft.application.iam.RoleApplicationService.RoleApplicationCommand;
+import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -26,6 +27,7 @@ public class RoleApplicationController {
     }
 
     @PostMapping("/api/admin/role-applications")
+    @RequirePermission("iam:role-application:create")
     public ResponseEntity<ApiResponse<ApprovalResponse>> submit(
         @RequestHeader("Authorization") String authorization,
         @RequestHeader("Idempotency-Key") String idempotencyKey,
@@ -37,6 +39,7 @@ public class RoleApplicationController {
     }
 
     @PostMapping("/api/collab/approvals/{approval_id}/actions")
+    @RequirePermission("iam:role-application:approve")
     public ResponseEntity<ApiResponse<ApprovalResponse>> action(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("approval_id") long approvalId,

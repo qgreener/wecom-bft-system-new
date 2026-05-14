@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.wecombft.application.audit.AuditLogService;
 import com.wecombft.application.audit.AuditLogService.AuditPage;
 import com.wecombft.infrastructure.persistence.audit.AuditLogRepository.AuditQuery;
+import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
@@ -27,6 +28,7 @@ public class AuditLogController {
     }
 
     @GetMapping
+    @RequirePermission("system:audit:read")
     public ResponseEntity<ApiResponse<AuditPage>> search(
         @RequestHeader("Authorization") String authorization,
         @RequestParam(value = "trace_id", required = false) String traceId,

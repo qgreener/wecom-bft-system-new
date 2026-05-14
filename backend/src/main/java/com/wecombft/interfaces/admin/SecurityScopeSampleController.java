@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.iam.SecurityScopeSampleService;
 import com.wecombft.application.iam.SecurityScopeSampleService.ScopeSampleResponse;
+import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -23,6 +24,7 @@ public class SecurityScopeSampleController {
     }
 
     @GetMapping("/{sample_id}")
+    @RequireAnyPermission({"course:lesson:write", "course:spec:write"})
     public ResponseEntity<ApiResponse<ScopeSampleResponse>> getSample(
         @RequestHeader("Authorization") String authorization,
         @PathVariable("sample_id") String sampleId

@@ -13,6 +13,7 @@ import com.wecombft.application.system.SystemConfigService;
 import com.wecombft.application.system.SystemConfigService.ConfigGroupResponse;
 import com.wecombft.application.system.SystemConfigService.SaveConfigCommand;
 import com.wecombft.application.system.SystemConfigService.SaveConfigResponse;
+import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -37,6 +38,7 @@ public class SystemConfigController {
     }
 
     @PostMapping
+    @RequirePermission("system:config:write")
     public ResponseEntity<ApiResponse<SaveConfigResponse>> save(
         @RequestHeader("Authorization") String authorization,
         @RequestBody SaveConfigCommand command

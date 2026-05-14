@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.wecombft.application.iam.CollabApplicationService;
 import com.wecombft.application.iam.CollabApplicationService.ApprovalPage;
 import com.wecombft.application.iam.CollabApplicationService.NotificationPage;
+import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -24,6 +25,7 @@ public class CollabController {
     }
 
     @GetMapping("/approvals")
+    @RequirePermission("iam:role-application:approve")
     public ResponseEntity<ApiResponse<ApprovalPage>> approvals(
         @RequestHeader("Authorization") String authorization,
         @RequestParam(value = "role", required = false) String role,
