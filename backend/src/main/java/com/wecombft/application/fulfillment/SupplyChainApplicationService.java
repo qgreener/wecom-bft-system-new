@@ -23,6 +23,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.domain.model.fulfillment.ShipmentStateSnapshot;
+import com.wecombft.domain.service.fulfillment.FulfillmentStateDomainService;
+import com.wecombft.domain.service.fulfillment.FulfillmentStateException;
+import com.wecombft.infrastructure.integration.logistics.LogisticsAdapter;
+import com.wecombft.infrastructure.integration.logistics.LogisticsAdapterException;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRecord;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRepository;
 import com.wecombft.infrastructure.persistence.integration.CallbackEventRepository.CallbackEventCommand;
@@ -44,6 +49,8 @@ public class SupplyChainApplicationService {
     private final AuditLogService auditLogService;
     private final CallbackEventRepository callbackEventRepository;
     private final OrderDocumentLinkRepository documentLinkRepository;
+    private final LogisticsAdapter logisticsAdapter;
+    private final FulfillmentStateDomainService fulfillmentStateDomainService = new FulfillmentStateDomainService();
 
     public SupplyChainApplicationService(
         JdbcTemplate jdbcTemplate,
@@ -51,7 +58,8 @@ public class SupplyChainApplicationService {
         ObjectMapper objectMapper,
         AuditLogService auditLogService,
         CallbackEventRepository callbackEventRepository,
-        OrderDocumentLinkRepository documentLinkRepository
+        OrderDocumentLinkRepository documentLinkRepository,
+        LogisticsAdapter logisticsAdapter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
@@ -59,6 +67,7 @@ public class SupplyChainApplicationService {
         this.auditLogService = auditLogService;
         this.callbackEventRepository = callbackEventRepository;
         this.documentLinkRepository = documentLinkRepository;
+        this.logisticsAdapter = logisticsAdapter;
     }
 
     @Transactional
@@ -415,14 +424,27 @@ public class SupplyChainApplicationService {
             return requireShipment(shipmentId).toActionResponse(stockFlowIdsForShipment(shipmentId));
         }
         validateShipmentCanShip(principal, shipment, order);
-        if ("CREATE_WAYBILL_FAILED".equalsIgnoreCase(command == null ? null : command.mockScenario())) {
-            auditLogService.writeFailure(principal, "FULFILLMENT", "SHIPMENT_WAYBILL_FAILED", "FULFILLMENT_SHIPMENT", shipment.id(), shipment.shipmentNo(), shipment.orderId(), "模拟获取运单失败");
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "FULFILLMENT_WAYBILL_FAILED", "物流 Mock 获取运单失败");
+        LogisticsAdapter.WaybillResult waybill;
+        try {
+            waybill = logisticsAdapter.createWaybill(new LogisticsAdapter.WaybillRequest(
+                shipment.id(),
+                shipment.shipmentNo(),
+                order.id(),
+                order.orderNo(),
+                command == null ? null : command.logisticsCompanyCode(),
+                command == null ? null : command.logisticsCompanyName(),
+                command == null ? null : command.trackingNo(),
+                command == null ? null : command.waybillFile(),
+                command == null ? null : command.mockScenario()));
+        } catch (LogisticsAdapterException exception) {
+            auditLogService.writeFailure(principal, "FULFILLMENT", "SHIPMENT_WAYBILL_FAILED", "FULFILLMENT_SHIPMENT", shipment.id(), shipment.shipmentNo(), shipment.orderId(), exception.getMessage());
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, exception.errorCode(), exception.getMessage());
         }
-        String trackingNo = requireText(command == null ? null : command.trackingNo(), "物流单号不能为空");
-        String logisticsCompanyName = requireText(command.logisticsCompanyName(), "物流公司不能为空");
-        String logisticsCompanyCode = blankToNull(command.logisticsCompanyCode());
-        if ("EXTERNAL_CREATED_INTERNAL_FAILED".equalsIgnoreCase(command.mockScenario())) {
+        String trackingNo = requireText(waybill.trackingNo(), "物流单号不能为空");
+        String logisticsCompanyName = requireText(waybill.logisticsCompanyName(), "物流公司不能为空");
+        String logisticsCompanyCode = blankToNull(waybill.logisticsCompanyCode());
+        String waybillFile = blankToNull(waybill.waybillFile());
+        if (waybill.externalCreatedInternalFailed()) {
             LocalDateTime failedAt = LocalDateTime.now();
             jdbcTemplate.update(
                 """
@@ -441,12 +463,12 @@ public class SupplyChainApplicationService {
                 logisticsCompanyCode,
                 logisticsCompanyName,
                 trackingNo,
-                blankToNull(command.waybillFile()),
-                "外部已出单内部保存失败，待补偿",
+                waybillFile,
+                waybill.exceptionReason(),
                 failedAt,
                 principal.userId(),
                 shipmentId);
-            upsertOrderDocument(order, "SHIPMENT", shipment.id(), shipment.shipmentNo(), "EXCEPTION", null, "SHIPMENT_EXCEPTION", "fulfillment_shipment", "外部已出单内部保存失败，待补偿", principal.userId());
+            upsertOrderDocument(order, "SHIPMENT", shipment.id(), shipment.shipmentNo(), "EXCEPTION", null, "SHIPMENT_EXCEPTION", "fulfillment_shipment", waybill.exceptionReason(), principal.userId());
             auditLogService.writeFailure(
                 principal,
                 "FULFILLMENT",
@@ -455,7 +477,7 @@ public class SupplyChainApplicationService {
                 shipment.id(),
                 shipment.shipmentNo(),
                 order.id(),
-                "外部已出单内部保存失败，待补偿");
+                waybill.exceptionReason());
             return requireShipment(shipmentId).toActionResponse(stockFlowIdsForShipment(shipmentId));
         }
         List<ShipmentItemRow> items = shipmentItems(shipmentId);
@@ -482,11 +504,11 @@ public class SupplyChainApplicationService {
             logisticsCompanyCode,
             logisticsCompanyName,
             trackingNo,
-            blankToNull(command.waybillFile()),
+            waybillFile,
             shippedAt,
             principal.userId(),
-            "WAYBILL_FAILED".equalsIgnoreCase(command.mockScenario()) ? 1 : 0,
-            "WAYBILL_FAILED".equalsIgnoreCase(command.mockScenario()) ? "面单或云打印失败，待补偿" : null,
+            waybill.waybillFailed() ? 1 : 0,
+            waybill.waybillFailed() ? waybill.exceptionReason() : null,
             shippedAt,
             principal.userId(),
             shipmentId);
@@ -1062,12 +1084,17 @@ public class SupplyChainApplicationService {
     }
 
     private void validateShipmentCanShip(AdminPrincipal principal, ShipmentRow shipment, OrderRow order) {
-        if (!"PAID".equals(order.paymentStatus()) || !"PENDING_SHIPMENT".equals(order.fulfillmentStatus()) || "REFUNDED".equals(order.refundStatus())) {
-            auditLogService.writeFailure(principal, "FULFILLMENT", "SHIPMENT_STATE_CONFLICT", "FULFILLMENT_SHIPMENT", shipment.id(), shipment.shipmentNo(), order.id(), "订单状态不允许发货");
-            throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "订单状态不允许发货");
-        }
-        if (!"PENDING_SHIPMENT".equals(shipment.status())) {
-            throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "发货单当前状态不允许发货");
+        try {
+            fulfillmentStateDomainService.ensureCanShip(new ShipmentStateSnapshot(
+                order.paymentStatus(),
+                order.fulfillmentStatus(),
+                order.refundStatus(),
+                shipment.status()));
+        } catch (FulfillmentStateException exception) {
+            if (exception.orderStateViolation()) {
+                auditLogService.writeFailure(principal, "FULFILLMENT", "SHIPMENT_STATE_CONFLICT", "FULFILLMENT_SHIPMENT", shipment.id(), shipment.shipmentNo(), order.id(), exception.getMessage());
+            }
+            throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", exception.getMessage());
         }
     }
 
