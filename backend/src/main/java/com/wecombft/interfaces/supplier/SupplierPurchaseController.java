@@ -9,22 +9,22 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wecombft.application.fulfillment.SupplyChainApplicationService;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchasePage;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseResponse;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SupplierConfirmCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SupplierLogisticsCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SupplierRejectCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchasePage;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseResponse;
+import com.wecombft.application.purchase.PurchaseApplicationService.SupplierConfirmCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.SupplierLogisticsCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.SupplierRejectCommand;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
 @RestController
 public class SupplierPurchaseController {
 
-    private final SupplyChainApplicationService supplyChainApplicationService;
+    private final PurchaseApplicationService purchaseApplicationService;
 
-    public SupplierPurchaseController(SupplyChainApplicationService supplyChainApplicationService) {
-        this.supplyChainApplicationService = supplyChainApplicationService;
+    public SupplierPurchaseController(PurchaseApplicationService purchaseApplicationService) {
+        this.purchaseApplicationService = purchaseApplicationService;
     }
 
     @GetMapping("/api/supplier-h5/purchases")
@@ -35,7 +35,7 @@ public class SupplierPurchaseController {
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.supplierPurchases(authorization, status, pageNo, pageSize),
+            purchaseApplicationService.supplierPurchases(authorization, status, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 
@@ -45,7 +45,7 @@ public class SupplierPurchaseController {
         @PathVariable("purchase_id") long purchaseId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.supplierPurchaseDetail(authorization, purchaseId),
+            purchaseApplicationService.supplierPurchaseDetail(authorization, purchaseId),
             TraceIds.currentOrCreate()));
     }
 
@@ -57,7 +57,7 @@ public class SupplierPurchaseController {
         @RequestBody SupplierConfirmCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.supplierConfirm(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierConfirm(authorization, purchaseId, idempotencyKey, command),
             TraceIds.currentOrCreate()));
     }
 
@@ -69,7 +69,7 @@ public class SupplierPurchaseController {
         @RequestBody SupplierRejectCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.supplierReject(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierReject(authorization, purchaseId, idempotencyKey, command),
             TraceIds.currentOrCreate()));
     }
 
@@ -81,7 +81,7 @@ public class SupplierPurchaseController {
         @RequestBody SupplierLogisticsCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.supplierLogistics(authorization, purchaseId, idempotencyKey, command),
+            purchaseApplicationService.supplierLogistics(authorization, purchaseId, idempotencyKey, command),
             TraceIds.currentOrCreate()));
     }
 }

@@ -10,15 +10,15 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wecombft.application.fulfillment.SupplyChainApplicationService;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.ApprovalActionCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.CreationResult;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseCreateCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseInputInvoiceCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchasePage;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseReceiptResponse;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseReceiveCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.PurchaseResponse;
+import com.wecombft.application.purchase.PurchaseApplicationService;
+import com.wecombft.application.purchase.PurchaseApplicationService.ApprovalActionCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.CreationResult;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseCreateCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseInputInvoiceCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchasePage;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseReceiptResponse;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseReceiveCommand;
+import com.wecombft.application.purchase.PurchaseApplicationService.PurchaseResponse;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
@@ -27,10 +27,10 @@ import com.wecombft.shared.web.ApiResponse;
 @RestController
 public class PurchaseAdminController {
 
-    private final SupplyChainApplicationService supplyChainApplicationService;
+    private final PurchaseApplicationService purchaseApplicationService;
 
-    public PurchaseAdminController(SupplyChainApplicationService supplyChainApplicationService) {
-        this.supplyChainApplicationService = supplyChainApplicationService;
+    public PurchaseAdminController(PurchaseApplicationService purchaseApplicationService) {
+        this.purchaseApplicationService = purchaseApplicationService;
     }
 
     @PostMapping("/api/admin/purchases")
@@ -39,7 +39,7 @@ public class PurchaseAdminController {
         @RequestHeader("Idempotency-Key") String idempotencyKey,
         @RequestBody PurchaseCreateCommand command
     ) {
-        CreationResult<PurchaseResponse> result = supplyChainApplicationService.createPurchase(
+        CreationResult<PurchaseResponse> result = purchaseApplicationService.createPurchase(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
             command);
@@ -58,7 +58,7 @@ public class PurchaseAdminController {
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.purchases(status, pageNo, pageSize),
+            purchaseApplicationService.purchases(status, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 
@@ -68,7 +68,7 @@ public class PurchaseAdminController {
         @PathVariable("purchase_id") long purchaseId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.purchaseDetail(purchaseId),
+            purchaseApplicationService.purchaseDetail(purchaseId),
             TraceIds.currentOrCreate()));
     }
 
@@ -79,7 +79,7 @@ public class PurchaseAdminController {
         @RequestHeader("Idempotency-Key") String idempotencyKey,
         @RequestBody PurchaseReceiveCommand command
     ) {
-        CreationResult<PurchaseReceiptResponse> result = supplyChainApplicationService.receivePurchase(
+        CreationResult<PurchaseReceiptResponse> result = purchaseApplicationService.receivePurchase(
             AdminPrincipalContext.currentOrNull(),
             purchaseId,
             idempotencyKey,
@@ -99,7 +99,7 @@ public class PurchaseAdminController {
         @RequestBody PurchaseInputInvoiceCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.backfillInputInvoice(
+            purchaseApplicationService.backfillInputInvoice(
                 AdminPrincipalContext.currentOrNull(),
                 purchaseId,
                 idempotencyKey,
@@ -114,7 +114,7 @@ public class PurchaseAdminController {
         @RequestBody ApprovalActionCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.approvePurchase(AdminPrincipalContext.currentOrNull(), approvalId, command),
+            purchaseApplicationService.approvePurchase(AdminPrincipalContext.currentOrNull(), approvalId, command),
             TraceIds.currentOrCreate()));
     }
 }
