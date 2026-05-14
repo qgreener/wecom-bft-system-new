@@ -6,9 +6,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wecombft.application.iam.ExternalAuthApplicationService;
-import com.wecombft.application.iam.ExternalAuthApplicationService.AppWechatLoginCommand;
-import com.wecombft.application.iam.ExternalAuthApplicationService.AppWechatLoginResponse;
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import com.wecombft.application.student.AppStudentApplicationService;
+import com.wecombft.application.student.AppStudentApplicationService.AppWechatLoginCommand;
+import com.wecombft.application.student.AppStudentApplicationService.AppWechatLoginResponse;
+import com.wecombft.application.student.AppStudentApplicationService.PhoneAuthorizeCommand;
+import com.wecombft.application.student.AppStudentApplicationService.PhoneAuthorizeResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -16,10 +20,10 @@ import com.wecombft.shared.web.ApiResponse;
 @RequestMapping("/api/app/auth")
 public class AppAuthController {
 
-    private final ExternalAuthApplicationService externalAuthApplicationService;
+    private final AppStudentApplicationService appStudentApplicationService;
 
-    public AppAuthController(ExternalAuthApplicationService externalAuthApplicationService) {
-        this.externalAuthApplicationService = externalAuthApplicationService;
+    public AppAuthController(AppStudentApplicationService appStudentApplicationService) {
+        this.appStudentApplicationService = appStudentApplicationService;
     }
 
     @PostMapping("/wechat-login")
@@ -27,7 +31,17 @@ public class AppAuthController {
         @RequestBody AppWechatLoginCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            externalAuthApplicationService.appWechatLogin(command),
+            appStudentApplicationService.wechatLogin(command),
+            TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/phone-authorize")
+    public ResponseEntity<ApiResponse<PhoneAuthorizeResponse>> phoneAuthorize(
+        @RequestHeader("Authorization") String authorization,
+        @RequestBody PhoneAuthorizeCommand command
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            appStudentApplicationService.authorizePhone(authorization, command),
             TraceIds.currentOrCreate()));
     }
 }

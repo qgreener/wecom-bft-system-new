@@ -16,7 +16,7 @@ public class AdminSecurityWebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminSecurityInterceptor)
-            .addPathPatterns("/api/admin/**", "/api/collab/**")
+            .addPathPatterns("/api/admin/**", "/api/collab/**", "/api/wecom/sidebar/**")
             .excludePathPatterns("/api/admin/auth/test-login", "/api/admin/auth/wecom-login");
     }
 }

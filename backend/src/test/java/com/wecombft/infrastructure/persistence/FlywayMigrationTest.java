@@ -190,6 +190,30 @@ class FlywayMigrationTest {
     }
 
     @Test
+    void should_apply_s4_foundation_schema_and_seed_data() {
+        assertThat(existingTables()).contains("lead_follow_record");
+        assertThat(existingColumns("approval_record")).contains("related_object_status_before");
+        assertThat(existingIndexes("lead_follow_record")).contains(
+                "uk_lead_follow_idempotency",
+                "idx_lead_follow_lead_time",
+                "idx_lead_follow_follower_time");
+
+        Integer taxRuleCount = jdbcTemplate.queryForObject(
+                "select count(*) from tax_rule where rule_no = 'TAX_S4_TRAINING' and status = 'ACTIVE'",
+                Integer.class);
+        Integer skuCount = jdbcTemplate.queryForObject(
+                "select count(*) from inventory_sku where sku_no in ('SKU_S4_TEXTBOOK', 'SKU_S4_GIFT') and status = 'ACTIVE'",
+                Integer.class);
+        Integer studentCount = jdbcTemplate.queryForObject(
+                "select count(*) from edu_student where student_no in ('STU_S4_MANUAL', 'STU_S4_DISABLED')",
+                Integer.class);
+
+        assertThat(taxRuleCount).isEqualTo(1);
+        assertThat(skuCount).isEqualTo(2);
+        assertThat(studentCount).isEqualTo(2);
+    }
+
+    @Test
     void should_not_add_soft_delete_columns_to_immutable_documents_logs_or_callbacks() {
         List<String> immutableTables = List.of(
                 "trade_order",

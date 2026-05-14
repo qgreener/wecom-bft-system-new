@@ -38,8 +38,8 @@ public class AuditLogService {
         auditLogRepository.insert(new AuditWriteCommand(
             auditId,
             TraceIds.currentOrCreate(),
-            principal.userId(),
-            principal.displayName(),
+            principal == null ? null : principal.userId(),
+            principal == null ? "SYSTEM" : principal.displayName(),
             operationModule,
             operationType,
             targetType,
@@ -55,6 +55,30 @@ public class AuditLogService {
             LocalDateTime.now()
         ));
         return auditId;
+    }
+
+    public long writeSystemSuccess(
+        String operationModule,
+        String operationType,
+        String targetType,
+        Long targetId,
+        String targetNo,
+        Long orderId,
+        String afterSnapshot
+    ) {
+        return writeSuccess(null, operationModule, operationType, targetType, targetId, targetNo, orderId, afterSnapshot);
+    }
+
+    public long writeSystemFailure(
+        String operationModule,
+        String operationType,
+        String targetType,
+        Long targetId,
+        String targetNo,
+        Long orderId,
+        String failureReason
+    ) {
+        return writeFailure(null, operationModule, operationType, targetType, targetId, targetNo, orderId, failureReason);
     }
 
     public long writeFailure(

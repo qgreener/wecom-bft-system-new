@@ -88,10 +88,22 @@ public class PermissionCatalog {
                 "system:audit:read",
                 "iam:role-application:approve",
                 "iam:role-grant",
-                "iam:user:read"
+                "iam:user:read",
+                "course:spec:write",
+                "course:lesson:write",
+                "course:lesson:read",
+                "course:approval:approve",
+                "crm:lead:read",
+                "crm:lead:write",
+                "student:read",
+                "learning:entitlement:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
+                new MenuPolicy("crm.leads", "线索管理", "crm", 100),
+                new MenuPolicy("crm.students", "学员管理", "crm", 110),
+                new MenuPolicy("course.manage", "课程管理", "course", 120),
+                new MenuPolicy("course.lesson-content", "课节内容", "course", 130),
                 new MenuPolicy("system.settings", "系统设置", "system", 900),
                 new MenuPolicy("system.audit-logs", "操作日志", "system", 910)
             ),
@@ -130,7 +142,10 @@ public class PermissionCatalog {
             "全部课程、课节和学习数据范围",
             Set.of(
                 "course:spec:write",
+                "course:lesson:write",
                 "course:lesson:read",
+                "course:approval:submit",
+                "learning:entitlement:read",
                 "student:read",
                 "report:learning:read"
             ),
@@ -153,7 +168,8 @@ public class PermissionCatalog {
             Set.of(
                 "course:lesson:write",
                 "course:lesson:read",
-                "learning:record:read"
+                "learning:record:read",
+                "learning:entitlement:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
