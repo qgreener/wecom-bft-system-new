@@ -36,7 +36,7 @@ import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
 @Service
-public class SupplyChainApplicationService {
+public class FulfillmentApplicationService {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
@@ -50,7 +50,7 @@ public class SupplyChainApplicationService {
     private final LogisticsAdapter logisticsAdapter;
     private final FulfillmentStateDomainService fulfillmentStateDomainService = new FulfillmentStateDomainService();
 
-    public SupplyChainApplicationService(
+    public FulfillmentApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
         ObjectMapper objectMapper,

@@ -24,7 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.wecombft.application.fulfillment.SupplyChainApplicationService;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -45,7 +45,7 @@ class S6FulfillmentInventoryPurchaseControllerTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private SupplyChainApplicationService supplyChainApplicationService;
+    private FulfillmentApplicationService fulfillmentApplicationService;
 
     @Test
     void should_manage_sku_and_manual_stock_flows_idempotently() throws Exception {
@@ -717,7 +717,7 @@ class S6FulfillmentInventoryPurchaseControllerTest {
 
     private boolean insertStockFlowByReflection(long flowId, String flowNo, long skuId, String idempotencyKey) {
         Boolean inserted = ReflectionTestUtils.invokeMethod(
-            supplyChainApplicationService,
+            fulfillmentApplicationService,
             "insertStockFlow",
             flowId,
             flowNo,

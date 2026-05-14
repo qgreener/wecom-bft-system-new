@@ -9,12 +9,12 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wecombft.application.fulfillment.SupplyChainApplicationService;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.ShipCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.ShipmentActionResponse;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.ShipmentDetailResponse;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.ShipmentPage;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SignCommand;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService.ShipCommand;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService.ShipmentActionResponse;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService.ShipmentDetailResponse;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService.ShipmentPage;
+import com.wecombft.application.fulfillment.FulfillmentApplicationService.SignCommand;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
@@ -23,10 +23,10 @@ import com.wecombft.shared.web.ApiResponse;
 @RestController
 public class ShipmentAdminController {
 
-    private final SupplyChainApplicationService supplyChainApplicationService;
+    private final FulfillmentApplicationService fulfillmentApplicationService;
 
-    public ShipmentAdminController(SupplyChainApplicationService supplyChainApplicationService) {
-        this.supplyChainApplicationService = supplyChainApplicationService;
+    public ShipmentAdminController(FulfillmentApplicationService fulfillmentApplicationService) {
+        this.fulfillmentApplicationService = fulfillmentApplicationService;
     }
 
     @GetMapping("/api/admin/shipments")
@@ -40,7 +40,7 @@ public class ShipmentAdminController {
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.shipments(status, orderNo, trackingNo, exceptionFlag, pageNo, pageSize),
+            fulfillmentApplicationService.shipments(status, orderNo, trackingNo, exceptionFlag, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 
@@ -50,7 +50,7 @@ public class ShipmentAdminController {
         @PathVariable("shipment_id") long shipmentId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.shipmentDetail(shipmentId),
+            fulfillmentApplicationService.shipmentDetail(shipmentId),
             TraceIds.currentOrCreate()));
     }
 
@@ -62,7 +62,7 @@ public class ShipmentAdminController {
         @RequestBody ShipCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.ship(AdminPrincipalContext.currentOrNull(), shipmentId, idempotencyKey, command),
+            fulfillmentApplicationService.ship(AdminPrincipalContext.currentOrNull(), shipmentId, idempotencyKey, command),
             TraceIds.currentOrCreate()));
     }
 
@@ -73,7 +73,7 @@ public class ShipmentAdminController {
         @RequestBody SignCommand command
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.sign(AdminPrincipalContext.currentOrNull(), shipmentId, command),
+            fulfillmentApplicationService.sign(AdminPrincipalContext.currentOrNull(), shipmentId, command),
             TraceIds.currentOrCreate()));
     }
 }
