@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wecombft.application.fulfillment.SupplyChainApplicationService;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.CreationResult;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SkuCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SkuPage;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.SkuResponse;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.StockFlowCommand;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.StockFlowPage;
-import com.wecombft.application.fulfillment.SupplyChainApplicationService.StockFlowResponse;
+import com.wecombft.application.inventory.InventoryApplicationService;
+import com.wecombft.application.inventory.InventoryApplicationService.CreationResult;
+import com.wecombft.application.inventory.InventoryApplicationService.SkuCommand;
+import com.wecombft.application.inventory.InventoryApplicationService.SkuPage;
+import com.wecombft.application.inventory.InventoryApplicationService.SkuResponse;
+import com.wecombft.application.inventory.InventoryApplicationService.StockFlowCommand;
+import com.wecombft.application.inventory.InventoryApplicationService.StockFlowPage;
+import com.wecombft.application.inventory.InventoryApplicationService.StockFlowResponse;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.shared.trace.TraceIds;
@@ -28,10 +28,10 @@ import com.wecombft.shared.web.ApiResponse;
 @RestController
 public class InventoryAdminController {
 
-    private final SupplyChainApplicationService supplyChainApplicationService;
+    private final InventoryApplicationService inventoryApplicationService;
 
-    public InventoryAdminController(SupplyChainApplicationService supplyChainApplicationService) {
-        this.supplyChainApplicationService = supplyChainApplicationService;
+    public InventoryAdminController(InventoryApplicationService inventoryApplicationService) {
+        this.inventoryApplicationService = inventoryApplicationService;
     }
 
     @GetMapping("/api/admin/inventory/skus")
@@ -45,7 +45,7 @@ public class InventoryAdminController {
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.skus(keyword, categoryCode, status, warningOnly, pageNo, pageSize),
+            inventoryApplicationService.skus(keyword, categoryCode, status, warningOnly, pageNo, pageSize),
             TraceIds.currentOrCreate()));
     }
 
@@ -55,7 +55,7 @@ public class InventoryAdminController {
         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
         @RequestBody SkuCommand command
     ) {
-        CreationResult<SkuResponse> result = supplyChainApplicationService.createSku(
+        CreationResult<SkuResponse> result = inventoryApplicationService.createSku(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
             command);
@@ -83,7 +83,7 @@ public class InventoryAdminController {
         @RequestParam(value = "page_size", required = false) Integer pageSize
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
-            supplyChainApplicationService.stockFlows(
+            inventoryApplicationService.stockFlows(
                 skuId,
                 orderId,
                 shipmentId,
@@ -103,7 +103,7 @@ public class InventoryAdminController {
         @RequestHeader("Idempotency-Key") String idempotencyKey,
         @RequestBody StockFlowCommand command
     ) {
-        CreationResult<StockFlowResponse> result = supplyChainApplicationService.createStockFlow(
+        CreationResult<StockFlowResponse> result = inventoryApplicationService.createStockFlow(
             AdminPrincipalContext.currentOrNull(),
             idempotencyKey,
             command);
