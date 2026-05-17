@@ -514,33 +514,33 @@ function getActionId(): string {
   return getRecordId(record, ["id", "shipment_id", "refund_id", "invoice_id", "batch_id", "material_id", "order_id", "purchase_id", "approval_id"]) ?? "";
 }
 
-function buildPayload(): string {
+const ACTION_BINDINGS: Record<string, { urlFor: (id: string) => string; action?: string }> = {
+  refundApprove:        { urlFor: (id) => `/api/admin/refunds/${id}/review`, action: "APPROVE" },
+  refundReject:         { urlFor: (id) => `/api/admin/refunds/${id}/review`, action: "REJECT" },
+  refundManual:         { urlFor: (id) => `/api/admin/refunds/${id}/manual-complete` },
+  ship:                 { urlFor: (id) => `/api/admin/shipments/${id}/ship` },
+  sign:                 { urlFor: (id) => `/api/admin/shipments/${id}/sign` },
+  invoiceIssue:         { urlFor: (id) => `/api/admin/invoices/${id}/issue-manual` },
+  redReverse:           { urlFor: (id) => `/api/admin/invoices/${id}/red-reverse` },
+  reconciliationImport: { urlFor: () => `/api/admin/reconciliation/batches` },
+  materialCreate:       { urlFor: () => `/api/admin/accounting/materials` },
+  materialUpload:       { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "UPLOAD" },
+  materialConfirm:      { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "CONFIRM" },
+  materialClose:        { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "CLOSE" }
+};
+
+async function executeAction(type: string, id: string): Promise<void> {
+  const binding = ACTION_BINDINGS[type];
+  if (!binding) throw new Error(`未知操作: ${type}`);
   const payload: Record<string, unknown> = { ...actionForm };
   for (const key of Object.keys(payload)) {
     if (key.endsWith("_cent") || key === "total_count" || key === "quantity") {
       payload[key] = Number(payload[key]) || 0;
     }
   }
-  return JSON.stringify(payload);
-}
-
-async function executeAction(type: string, id: string): Promise<void> {
-  const opts = { method: "POST", body: buildPayload(), idempotent: true, idempotencyScope: type };
-  const map: Record<string, string> = {
-    refundApprove: `/api/admin/refunds/${id}/approve`,
-    refundReject: `/api/admin/refunds/${id}/reject`,
-    refundManual: `/api/admin/refunds/${id}/manual-complete`,
-    ship: `/api/admin/shipments/${id}/ship`,
-    sign: `/api/admin/shipments/${id}/sign`,
-    invoiceIssue: `/api/admin/invoices/${id}/issue-manual`,
-    redReverse: `/api/admin/invoices/${id}/red-reverse`,
-    reconciliationImport: `/api/admin/reconciliations/import`,
-    materialCreate: `/api/admin/accounting-materials`,
-    materialUpload: `/api/admin/accounting-materials/${id}/files`,
-    materialConfirm: `/api/admin/accounting-materials/${id}/confirm`,
-    materialClose: `/api/admin/accounting-materials/${id}/close`
-  };
-  await request(map[type], opts);
+  if (binding.action) payload.action = binding.action;
+  const opts = { method: "POST", body: JSON.stringify(payload), idempotent: true, idempotencyScope: type };
+  await request(binding.urlFor(id), opts);
 }
 
 function routeActions(routeKey: RouteKey): { type: string; label: string }[] {

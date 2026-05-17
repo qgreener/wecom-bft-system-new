@@ -106,8 +106,8 @@ export const routeRegistry: AdminRoute[] = [
     group: "finance",
     menuCodes: ["finance.reconciliation"],
     permissionCodes: ["finance:reconciliation:write"],
-    listPath: "/api/admin/reconciliations",
-    detailPath: (id) => `/api/admin/reconciliations/${id}`,
+    listPath: "/api/admin/reconciliation/batches",
+    detailPath: (id) => `/api/admin/reconciliation/batches/${id}`,
     idFields: ["batch_id"]
   },
   {
@@ -117,8 +117,8 @@ export const routeRegistry: AdminRoute[] = [
     group: "finance",
     menuCodes: ["accounting.workspace"],
     permissionCodes: ["accounting:material:write"],
-    listPath: "/api/admin/accounting-materials",
-    detailPath: (id) => `/api/admin/accounting-materials/${id}`,
+    listPath: "/api/admin/accounting/materials",
+    detailPath: (id) => `/api/admin/accounting/materials/${id}`,
     idFields: ["material_id"],
     statusFields: ["status"]
   },

@@ -53,44 +53,44 @@ class S7AfterSalesFinanceControllerTest {
         assertThat(findString("trade_order", "refund_status", rejectedOrderId)).isEqualTo("REVIEWING");
         assertThat(findStringBy("learning_entitlement", "status", "order_id", rejectedOrderId)).isEqualTo("ACTIVE");
 
-        mockMvc.perform(post("/api/app/refunds")
+        mockMvc.perform(post("/api/app/orders/{order_id}/refunds", rejectedOrderId)
                 .header("Authorization", "Bearer " + studentToken)
                 .header("Idempotency-Key", "s7-refund-duplicate-running")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"order_id":%d,"apply_amount_cent":58800,"refund_reason":"重复申请"}
-                    """.formatted(rejectedOrderId)))
+                    {"apply_amount_cent":58800,"refund_reason":"重复申请"}
+                    """))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("STATE_CONFLICT"));
 
-        mockMvc.perform(post("/api/admin/refunds/{refund_id}/reject", rejectedRefundId)
+        mockMvc.perform(post("/api/admin/refunds/{refund_id}/review", rejectedRefundId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"reject_reason\":\"不符合退款规则\"}"))
+                .content("{\"action\":\"REJECT\",\"reject_reason\":\"不符合退款规则\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("REJECTED"));
         assertThat(findString("trade_order", "refund_status", rejectedOrderId)).isEqualTo("REJECTED");
         assertThat(findStringBy("learning_entitlement", "status", "order_id", rejectedOrderId)).isEqualTo("ACTIVE");
 
         long originalRefundId = applyRefund(studentToken, originalOrderId, 68800, "s7-refund-original-key", "REVOKE");
-        mockMvc.perform(post("/api/admin/refunds/{refund_id}/approve", originalRefundId)
+        mockMvc.perform(post("/api/admin/refunds/{refund_id}/review", originalRefundId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .header("Idempotency-Key", "s7-approve-original")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"approved_amount_cent":68800,"refund_channel":"ORIGINAL","review_comment":"同意原路退","entitlement_action":"REVOKE"}
+                    {"action":"APPROVE","approved_amount_cent":68800,"refund_channel":"ORIGINAL","review_comment":"同意原路退","entitlement_action":"REVOKE"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PROCESSING"))
             .andExpect(jsonPath("$.data.refund_channel").value("ORIGINAL"));
 
         long manualRefundId = applyRefund(studentToken, manualOrderId, 78800, "s7-refund-manual-key", "FREEZE");
-        mockMvc.perform(post("/api/admin/refunds/{refund_id}/approve", manualRefundId)
+        mockMvc.perform(post("/api/admin/refunds/{refund_id}/review", manualRefundId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .header("Idempotency-Key", "s7-approve-manual")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"approved_amount_cent":78800,"refund_channel":"MANUAL","review_comment":"转线下处理","entitlement_action":"FREEZE"}
+                    {"action":"APPROVE","approved_amount_cent":78800,"refund_channel":"MANUAL","review_comment":"转线下处理","entitlement_action":"FREEZE"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("MANUAL_REQUIRED"));
@@ -187,13 +187,13 @@ class S7AfterSalesFinanceControllerTest {
         long unpaidOrderId = createOrder(studentToken, false, null, "s7-unpaid-invoice", 31800);
         long titleId = saveInvoiceTitle(studentToken, "s7-title-main", "COMPANY", "S7 开票公司", "91330100S7INV", "invoice@example.test");
 
-        mockMvc.perform(post("/api/app/invoices")
+        mockMvc.perform(post("/api/app/orders/{order_id}/invoices", unpaidOrderId)
                 .header("Authorization", "Bearer " + studentToken)
                 .header("Idempotency-Key", "s7-invoice-unpaid")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"order_id":%d,"title_id":%d,"email":"invoice@example.test"}
-                    """.formatted(unpaidOrderId, titleId)))
+                    {"title_id":%d,"email":"invoice@example.test"}
+                    """.formatted(titleId)))
             .andExpect(status().isUnprocessableEntity())
             .andExpect(jsonPath("$.code").value("BUSINESS_RULE_BLOCKED"));
 
@@ -251,19 +251,19 @@ class S7AfterSalesFinanceControllerTest {
 
         long refundingOrderId = createPaidOrder(studentToken, false, null, "s7-invoice-refunding", 41800);
         applyRefund(studentToken, refundingOrderId, 41800, "s7-refunding-before-invoice", "FREEZE");
-        mockMvc.perform(post("/api/app/invoices")
+        mockMvc.perform(post("/api/app/orders/{order_id}/invoices", refundingOrderId)
                 .header("Authorization", "Bearer " + studentToken)
                 .header("Idempotency-Key", "s7-invoice-refunding-block")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"order_id":%d,"title_id":%d,"email":"invoice@example.test"}
-                    """.formatted(refundingOrderId, titleId)))
+                    {"title_id":%d,"email":"invoice@example.test"}
+                    """.formatted(titleId)))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value("STATE_CONFLICT"));
     }
 
     @Test
-    void should_accept_documented_s7_api_paths_as_aliases() throws Exception {
+    void should_accept_documented_s7_api_paths_end_to_end() throws Exception {
         String studentToken = appLogin("DEMO_APP_STUDENT");
         String serviceToken = adminLogin("DEMO_SERVICE");
         String accountingToken = adminLogin("DEMO_ACCOUNTING");
@@ -429,7 +429,7 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.invoice_id").value(invoiceId));
 
-        String materialResponse = mockMvc.perform(post("/api/admin/accounting-materials")
+        String materialResponse = mockMvc.perform(post("/api/admin/accounting/materials")
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s8-admin-material-list")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -451,13 +451,13 @@ class S7AfterSalesFinanceControllerTest {
         long materialId = extractLong(materialResponse, "material_id");
         String materialNo = findString("acct_material", "material_no", materialId);
 
-        mockMvc.perform(get("/api/admin/accounting-materials")
+        mockMvc.perform(get("/api/admin/accounting/materials")
                 .header("Authorization", "Bearer " + accountingToken)
                 .param("status", "PENDING_SUPPLEMENT")
                 .param("related_month", "2026-05"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.records[*].material_no", hasItem(materialNo)));
-        mockMvc.perform(get("/api/admin/accounting-materials/{material_id}", materialId)
+        mockMvc.perform(get("/api/admin/accounting/materials/{material_id}", materialId)
                 .header("Authorization", "Bearer " + accountingToken))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.material_id").value(materialId));
@@ -493,7 +493,7 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("REFUNDED"));
 
-        String response = mockMvc.perform(post("/api/admin/reconciliations/import")
+        String response = mockMvc.perform(post("/api/admin/reconciliation/batches")
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-recon-import")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -533,7 +533,7 @@ class S7AfterSalesFinanceControllerTest {
             .getContentAsString();
         long batchId = extractLong(response, "batch_id");
 
-        mockMvc.perform(get("/api/admin/reconciliations/{batch_id}", batchId)
+        mockMvc.perform(get("/api/admin/reconciliation/batches/{batch_id}", batchId)
                 .header("Authorization", "Bearer " + accountingToken))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.records[*].result", hasItem("MATCHED")))
@@ -554,7 +554,7 @@ class S7AfterSalesFinanceControllerTest {
         String serviceToken = adminLogin("DEMO_SERVICE");
         long orderId = createPaidOrder(studentToken, false, null, "s7-material-order", 43800);
 
-        String response = mockMvc.perform(post("/api/admin/accounting-materials")
+        String response = mockMvc.perform(post("/api/admin/accounting/materials")
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-material-create")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -576,31 +576,31 @@ class S7AfterSalesFinanceControllerTest {
             .getContentAsString();
         long materialId = extractLong(response, "material_id");
 
-        mockMvc.perform(post("/api/admin/accounting-materials/{material_id}/files", materialId)
+        mockMvc.perform(post("/api/admin/accounting/materials/{material_id}/actions", materialId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-material-upload")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"file_refs":["FILE_S7_MATERIAL_001"],"remark":"已上传材料"}
+                    {"action":"UPLOAD","file_refs":["FILE_S7_MATERIAL_001"],"remark":"已上传材料"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("UPLOADED"));
 
-        mockMvc.perform(post("/api/admin/accounting-materials/{material_id}/confirm", materialId)
+        mockMvc.perform(post("/api/admin/accounting/materials/{material_id}/actions", materialId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-material-confirm")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"remark\":\"材料可用\"}"))
+                .content("{\"action\":\"CONFIRM\",\"remark\":\"材料可用\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("CONFIRMED"));
 
-        mockMvc.perform(get("/api/admin/accounting-materials/{material_id}/download", materialId)
+        mockMvc.perform(get("/api/admin/accounting/materials/{material_id}/download", materialId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .param("file_no", "FILE_S7_MATERIAL_001")
                 .param("download_reason", "越权下载"))
             .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/admin/accounting-materials/{material_id}/download", materialId)
+        mockMvc.perform(get("/api/admin/accounting/materials/{material_id}/download", materialId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .param("file_no", "FILE_S7_MATERIAL_001")
                 .param("download_reason", "月度做账"))
@@ -608,11 +608,11 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(jsonPath("$.data.file_no").value("FILE_S7_MATERIAL_001"))
             .andExpect(jsonPath("$.data.download_allowed").value(true));
 
-        mockMvc.perform(post("/api/admin/accounting-materials/{material_id}/close", materialId)
+        mockMvc.perform(post("/api/admin/accounting/materials/{material_id}/actions", materialId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "s7-material-close")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"closed_reason\":\"S7 材料归档关闭\"}"))
+                .content("{\"action\":\"CLOSE\",\"closed_reason\":\"S7 材料归档关闭\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("CLOSED"));
 
@@ -668,19 +668,18 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     private long applyRefund(String studentToken, long orderId, long amountCent, String idempotencyKey, String entitlementAction) throws Exception {
-        String response = mockMvc.perform(post("/api/app/refunds")
+        String response = mockMvc.perform(post("/api/app/orders/{order_id}/refunds", orderId)
                 .header("Authorization", "Bearer " + studentToken)
                 .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "order_id": %d,
                       "apply_amount_cent": %d,
                       "refund_reason": "S7 退款",
                       "apply_description": "S7 refund test",
                       "entitlement_action": "%s"
                     }
-                    """.formatted(orderId, amountCent, entitlementAction)))
+                    """.formatted(amountCent, entitlementAction)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.data.status").value("REVIEWING"))
             .andReturn()
@@ -690,12 +689,12 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     private void approveOriginal(String serviceToken, long refundId, long amountCent, String entitlementAction, String idempotencyKey) throws Exception {
-        mockMvc.perform(post("/api/admin/refunds/{refund_id}/approve", refundId)
+        mockMvc.perform(post("/api/admin/refunds/{refund_id}/review", refundId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"approved_amount_cent":%d,"refund_channel":"ORIGINAL","review_comment":"同意","entitlement_action":"%s"}
+                    {"action":"APPROVE","approved_amount_cent":%d,"refund_channel":"ORIGINAL","review_comment":"同意","entitlement_action":"%s"}
                     """.formatted(amountCent, entitlementAction)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.status").value("PROCESSING"));
@@ -724,13 +723,13 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     private long applyInvoice(String studentToken, long orderId, long titleId, String idempotencyKey) throws Exception {
-        String response = mockMvc.perform(post("/api/app/invoices")
+        String response = mockMvc.perform(post("/api/app/orders/{order_id}/invoices", orderId)
                 .header("Authorization", "Bearer " + studentToken)
                 .header("Idempotency-Key", idempotencyKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"order_id":%d,"title_id":%d,"email":"invoice@example.test"}
-                    """.formatted(orderId, titleId)))
+                    {"title_id":%d,"email":"invoice@example.test"}
+                    """.formatted(titleId)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.data.status").value("APPLIED"))
             .andReturn()
@@ -740,7 +739,7 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     private void issueInvoice(String accountingToken, long invoiceId, String invoiceNo, String fileNo) throws Exception {
-        mockMvc.perform(post("/api/admin/invoices/{invoice_id}/issue", invoiceId)
+        mockMvc.perform(post("/api/admin/invoices/{invoice_id}/issue-manual", invoiceId)
                 .header("Authorization", "Bearer " + accountingToken)
                 .header("Idempotency-Key", "issue-" + invoiceNo)
                 .contentType(MediaType.APPLICATION_JSON)

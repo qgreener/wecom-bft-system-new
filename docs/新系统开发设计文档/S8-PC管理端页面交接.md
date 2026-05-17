@@ -22,8 +22,8 @@
 | 退款处理 | `#/refunds` | `GET /api/admin/refunds`、`GET /api/admin/refunds/{refund_id}`、审核/拒绝/人工退款接口 | 已实现 |
 | 发货管理 | `#/shipments` | `GET /api/admin/shipments`、`GET /api/admin/shipments/{shipment_id}`、发货/签收接口 | 已实现 |
 | 开票管理 | `#/invoices` | `GET /api/admin/invoices`、`GET /api/admin/invoices/{invoice_id}`、人工开票/红冲接口 | 已实现 |
-| 收款对账 | `#/reconciliation` | `GET /api/admin/reconciliations`、`GET /api/admin/reconciliations/{batch_id}`、导入接口 | 已实现 |
-| 代账管理 | `#/accounting` | `GET /api/admin/accounting-materials`、详情、上传/确认/关闭/下载、工作台摘要 | 已实现 |
+| 收款对账 | `#/reconciliation` | `GET /api/admin/reconciliation/batches`、`GET /api/admin/reconciliation/batches/{batch_id}`、`POST /api/admin/reconciliation/batches` | 已实现 |
+| 代账管理 | `#/accounting` | `GET /api/admin/accounting/materials`、详情、`/actions`（UPLOAD/CONFIRM/CLOSE）、`/download`、工作台摘要 | 已实现 |
 | 课程管理 | `#/courses` | `GET /api/admin/courses`、`GET /api/admin/courses/{course_id}` | 已实现列表与详情 |
 | 线索管理 | `#/leads` | `GET /api/admin/leads` | 已实现列表 |
 | 学员管理 | `#/students` | 当前无 `GET /api/admin/students` | 页面显示接口缺口，不伪造数据 |
@@ -38,11 +38,11 @@
 |---|---|---|
 | 鉴权权限 | `POST /api/admin/auth/test-login`、`POST /api/admin/auth/wecom-login`、`GET /api/admin/auth/me` | 菜单、权限码、数据范围、字段脱敏均以 `auth/me` 返回为准 |
 | 订单 | `GET /api/admin/orders`、`GET /api/admin/orders/{order_id}` | 订单详情展示四类状态、支付记录、权益、发货单、单据链、审计日志 |
-| 退款 | `GET /api/admin/refunds`、`GET /api/admin/refunds/{refund_id}`、`POST /approve`、`POST /reject`、`POST /manual-complete` | 列表/详情为 S8 补口；写操作后前端重新查询 |
+| 退款 | `GET /api/admin/refunds`、`GET /api/admin/refunds/{refund_id}`、`POST /review`（`action=APPROVE/REJECT`）、`POST /manual-complete` | 列表/详情为 S8 补口；写操作后前端重新查询 |
 | 发货 | `GET /api/admin/shipments`、`GET /api/admin/shipments/{shipment_id}`、`POST /ship`、`POST /sign` | 发货写操作带幂等键 |
 | 开票 | `GET /api/admin/invoices`、`GET /api/admin/invoices/{invoice_id}`、`POST /issue-manual`、`POST /red-reverse` | 列表/详情为 S8 补口 |
-| 对账 | `GET /api/admin/reconciliations`、`GET /api/admin/reconciliations/{batch_id}`、`POST /api/admin/reconciliations/import` | 对账导入只生成批次和差异，不改交易状态 |
-| 代账 | `GET /api/admin/accounting-materials`、`GET /api/admin/accounting-materials/{material_id}`、`POST /files`、`POST /confirm`、`POST /close`、`GET /download`、`GET /api/admin/accounting-workbench/summary` | 列表/详情为 S8 补口 |
+| 对账 | `GET /api/admin/reconciliation/batches`、`GET /api/admin/reconciliation/batches/{batch_id}`、`POST /api/admin/reconciliation/batches` | 对账导入只生成批次和差异，不改交易状态 |
+| 代账 | `GET /api/admin/accounting/materials`、`GET /api/admin/accounting/materials/{material_id}`、`POST /actions`（UPLOAD/CONFIRM/CLOSE）、`GET /download`、`GET /api/admin/accounting-workbench/summary` | 列表/详情为 S8 补口 |
 | 课程线索库存采购 | `/api/admin/courses`、`/api/admin/leads`、`/api/admin/inventory/skus`、`/api/admin/purchases` | 页面使用当前 Controller 字段展示 |
 | 系统审计 | `/api/admin/system/configs`、`/api/admin/audit/logs` | 权限由后端兜底 |
 
@@ -51,12 +51,12 @@
 | 差异 | 当前代码事实 | S8 处理 |
 |---|---|---|
 | 管理端测试登录 | 当前存在 `POST /api/admin/auth/test-login` | 前端用于本地演示登录；企微登录路径仍保留 |
-| 退款申请路径 | S7 同时支持 `POST /api/app/refunds` 与 `POST /api/app/orders/{order_id}/refunds` | PC 不接 App 申请，只接 Admin 审核处理 |
-| 退款审核路径 | 当前有 `approve`、`reject`，并保留 `review` 别名 | 前端接 `approve`、`reject` 真实接口 |
-| 开票人工路径 | 当前有 `issue` 与 `issue-manual` | 前端接 `issue-manual`，后端复用同一服务 |
-| 对账别名 | 当前有 `/api/admin/reconciliations/import` 与 `/api/admin/reconciliation/batches` | 前端接主路径 `/api/admin/reconciliations/import` |
-| 代账别名 | 当前有 `/api/admin/accounting-materials` 与 `/api/admin/accounting/materials` | 前端接主路径 `/api/admin/accounting-materials` |
-| 管理端退款/开票/材料列表 | 06 和 S7 交接未给完整管理端列表/详情，当前 S8 已补 `GET /api/admin/refunds`、`GET /api/admin/invoices`、`GET /api/admin/accounting-materials` | 作为真实页面接入依据 |
+| 退款申请路径 | 已对齐 06 唯一契约 `POST /api/app/orders/{order_id}/refunds`，旧 `POST /api/app/refunds` 别名已删除 | PC 不接 App 申请，只接 Admin 审核处理 |
+| 退款审核路径 | 已对齐 06 唯一契约 `POST /api/admin/refunds/{refund_id}/review`（`action=APPROVE/REJECT`），旧 `/approve`、`/reject` 别名已删除 | 前端 `App.vue` 已切到 `/review` 并按按钮注入 `action` |
+| 开票人工路径 | 已对齐 06 唯一契约 `POST /api/admin/invoices/{invoice_id}/issue-manual`，旧 `/issue` 别名已删除 | 前端接 `issue-manual` |
+| 对账路径 | 已对齐 06 唯一契约 `POST /api/admin/reconciliation/batches`、`GET /api/admin/reconciliation/batches[/{batch_id}]`，旧 `/api/admin/reconciliations*` 别名已删除 | 前端 `routes.ts`、`App.vue` 已切到 `/reconciliation/batches` |
+| 代账路径 | 已对齐 06 唯一契约 `POST/GET /api/admin/accounting/materials`、`POST /{id}/actions`、`GET /{id}/download`，旧 `/api/admin/accounting-materials*` 别名已删除 | 前端 `routes.ts`、`App.vue` 已切到 `/accounting/materials` 与 `/actions` |
+| 管理端退款/开票/材料列表 | S8 补口已落地 `GET /api/admin/refunds`、`GET /api/admin/invoices`、`GET /api/admin/accounting/materials` | 作为真实页面接入依据 |
 | `allowed_actions` | 当前核心 DTO 多数未返回 `allowed_actions` | 前端操作按钮按权限显示，最终状态由后端裁决；此项记录为 S9 前建议补字段 |
 
 ## 5. 接口缺口与 S9 注意事项
