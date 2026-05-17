@@ -1,6 +1,5 @@
 Page({
-  data: {
-    apiPrefix: "/api/app/**",
-    healthEndpoint: "/api/health"
+  onLoad() {
+    wx.switchTab({ url: "/pages/courses/list" });
   }
 });

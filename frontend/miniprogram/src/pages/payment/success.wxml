@@ -1,0 +1,18 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">查询后端支付状态</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{order}}" class="card">
+    <view class="title">支付结果</view>
+    <view class="status-row section" style="margin-top: 18rpx;">
+      <text class="status-tag {{paymentTone}}">{{paymentText}}</text>
+    </view>
+    <view class="line between"><text>订单编号</text><text>{{order.order_no}}</text></view>
+    <view class="line between"><text>支付金额</text><text class="price">{{amountText}}</text></view>
+    <view class="subtle section">页面已重新查询订单状态；是否开通学习权益和发货任务以后端单据链为准。</view>
+    <view wx:if="{{hasPhysical}}" class="status-tag warning">实物商品待履约</view>
+    <view class="row" style="gap: 16rpx; margin-top: 28rpx;">
+      <view class="btn" bindtap="learn">去学习</view>
+      <view class="btn ghost" bindtap="order">查看订单</view>
+    </view>
+  </view>
+</view>

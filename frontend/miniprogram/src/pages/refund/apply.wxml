@@ -1,0 +1,21 @@
+<view class="page with-bottom-bar">
+  <view class="card">
+    <view class="h2">退款订单</view>
+    <view class="line between"><text>订单编号</text><text>{{orderId}}</text></view>
+    <view class="line between"><text>申请金额</text><text class="price">{{amountText}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="h2 section">退款原因</view>
+    <view class="chip-row">
+      <view wx:for="{{reasons}}" wx:key="*this" class="chip {{reason === item ? 'active' : ''}}" data-reason="{{item}}" bindtap="setReason">{{item}}</view>
+    </view>
+    <textarea class="textarea" maxlength="200" value="{{description}}" bindinput="onDescriptionInput" placeholder="补充说明（选填，200 字内）" />
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="bottom-bar">
+    <view class="subtle">订单支付状态保持已支付，退款状态以后端为准</view>
+    <view class="btn {{loading ? 'disabled' : ''}}" bindtap="submit">{{loading ? '提交中' : '提交申请'}}</view>
+  </view>
+</view>

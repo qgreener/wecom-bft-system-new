@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="chip-row">
+    <view class="chip {{paymentStatus === '' ? 'active' : ''}}" data-status="" bindtap="setPayment">全部</view>
+    <view class="chip {{paymentStatus === 'PENDING' ? 'active' : ''}}" data-status="PENDING" bindtap="setPayment">待支付</view>
+    <view class="chip {{paymentStatus === 'PAID' ? 'active' : ''}}" data-status="PAID" bindtap="setPayment">已支付</view>
+    <view class="chip {{paymentStatus === 'CLOSED' ? 'active' : ''}}" data-status="CLOSED" bindtap="setPayment">已关闭</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载订单</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{records.length === 0}}" class="empty">暂无订单</view>
+  <view wx:else>
+    <view wx:for="{{records}}" wx:key="order_id" class="card" data-id="{{item.order_id}}" bindtap="open">
+      <view class="between">
+        <view class="subtle">{{item.order_no}}</view>
+        <view class="price">{{item.amount_text}}</view>
+      </view>
+      <view class="h2 section">{{item.course_title}}</view>
+      <view class="status-row">
+        <text wx:for="{{item.status_tags}}" wx:key="label" class="status-tag {{item.tone}}">{{item.label}}</text>
+      </view>
+      <view class="subtle section">{{item.created_text}} {{item.countdown_text}}</view>
+      <view wx:if="{{item.payment_status === 'PENDING'}}" class="btn secondary" catchtap="continuePay" data-id="{{item.order_id}}" data-amount="{{item.payable_amount_cent}}">继续支付</view>
+    </view>
+  </view>
+</view>

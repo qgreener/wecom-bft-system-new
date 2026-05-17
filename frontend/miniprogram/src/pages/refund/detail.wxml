@@ -1,0 +1,25 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载退款进度</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{refund}}">
+    <view class="card">
+      <view class="between">
+        <view class="title">退款进度</view>
+        <text class="status-tag {{statusTone}}">{{statusText}}</text>
+      </view>
+      <view class="subtle section">{{refund.refund_no}}</view>
+      <view class="line between"><text>申请金额</text><text class="price">{{amountText}}</text></view>
+      <view class="line between"><text>审核金额</text><text>{{approvedText}}</text></view>
+      <view class="line between"><text>到账时间</text><text>{{refundedText}}</text></view>
+      <view wx:if="{{refund.failure_reason}}" class="error">{{refund.failure_reason}}</view>
+    </view>
+
+    <view class="card">
+      <view wx:for="{{steps}}" wx:key="title" class="step {{item.active ? 'active' : ''}}">
+        <view class="step-title">{{item.title}}</view>
+      </view>
+    </view>
+
+    <view class="btn secondary" bindtap="backOrder">返回订单</view>
+  </view>
+</view>

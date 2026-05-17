@@ -1,0 +1,30 @@
+<view class="page">
+  <view wx:if="{{!loggedIn}}" class="card">
+    <view class="h2 section">登录后查看学习权益</view>
+    <view class="btn" bindtap="login">去登录</view>
+  </view>
+
+  <view wx:else>
+    <view class="chip-row">
+      <view class="chip {{status === 'ACTIVE' ? 'active' : ''}}" data-status="ACTIVE" bindtap="setStatus">可学习</view>
+      <view class="chip {{status === '' ? 'active' : ''}}" data-status="" bindtap="setStatus">全部</view>
+      <view class="chip {{status === 'FROZEN' ? 'active' : ''}}" data-status="FROZEN" bindtap="setStatus">冻结</view>
+      <view class="chip {{status === 'REVOKED' ? 'active' : ''}}" data-status="REVOKED" bindtap="setStatus">撤销</view>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">加载学习权益</view>
+    <view wx:elif="{{error}}" class="error">{{error}}</view>
+    <view wx:elif="{{records.length === 0}}" class="empty">暂无学习权益</view>
+    <view wx:else>
+      <view wx:for="{{records}}" wx:key="entitlement_id" class="card" data-id="{{item.entitlement_id}}" data-active="{{item.can_learn}}" bindtap="openLearning">
+        <view class="between">
+          <view class="h2">{{item.course_title}}</view>
+          <text class="status-tag {{item.status_tone}}">{{item.status_text}}</text>
+        </view>
+        <view class="subtle">订单：{{item.order_no}} · 开通：{{item.opened_text}}</view>
+        <view wx:if="{{item.can_learn}}" class="btn secondary" style="margin-top: 18rpx;">进入学习</view>
+        <view wx:else class="subtle" style="margin-top: 18rpx;">权益非 ACTIVE，学习入口已隐藏</view>
+      </view>
+    </view>
+  </view>
+</view>

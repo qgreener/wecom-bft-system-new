@@ -396,6 +396,74 @@ class S7AfterSalesFinanceControllerTest {
     }
 
     @Test
+    void should_expose_admin_finance_lists_for_s8_pc_pages() throws Exception {
+        String studentToken = appLogin("DEMO_APP_STUDENT");
+        String serviceToken = adminLogin("DEMO_SERVICE");
+        String accountingToken = adminLogin("DEMO_ACCOUNTING");
+        long refundOrderId = createPaidOrder(studentToken, false, null, "s8-admin-refund-list", 35800);
+        long refundId = applyRefund(studentToken, refundOrderId, 35800, "s8-admin-refund-list", "FREEZE");
+        String refundNo = findString("pay_refund", "refund_no", refundId);
+
+        mockMvc.perform(get("/api/admin/refunds")
+                .header("Authorization", "Bearer " + serviceToken)
+                .param("status", "REVIEWING"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].refund_no", hasItem(refundNo)));
+        mockMvc.perform(get("/api/admin/refunds/{refund_id}", refundId)
+                .header("Authorization", "Bearer " + serviceToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.refund_id").value(refundId));
+
+        long invoiceOrderId = createPaidOrder(studentToken, false, null, "s8-admin-invoice-list", 36800);
+        long titleId = saveInvoiceTitle(studentToken, "s8-admin-invoice-title", "COMPANY", "S8 开票公司", "91330100S8INV", "s8@example.test");
+        long invoiceId = applyInvoice(studentToken, invoiceOrderId, titleId, "s8-admin-invoice-list");
+        String invoiceApplyNo = findString("tax_invoice", "invoice_apply_no", invoiceId);
+
+        mockMvc.perform(get("/api/admin/invoices")
+                .header("Authorization", "Bearer " + accountingToken)
+                .param("status", "APPLIED"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].invoice_apply_no", hasItem(invoiceApplyNo)));
+        mockMvc.perform(get("/api/admin/invoices/{invoice_id}", invoiceId)
+                .header("Authorization", "Bearer " + accountingToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.invoice_id").value(invoiceId));
+
+        String materialResponse = mockMvc.perform(post("/api/admin/accounting-materials")
+                .header("Authorization", "Bearer " + accountingToken)
+                .header("Idempotency-Key", "s8-admin-material-list")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "material_type": "MONTHLY_BOOKKEEPING",
+                      "related_month": "2026-05",
+                      "order_id": %d,
+                      "related_object_type": "ORDER",
+                      "related_object_id": %d,
+                      "purpose": "S8 管理端材料列表",
+                      "due_at": "2026-05-31T23:59:59"
+                    }
+                    """.formatted(invoiceOrderId, invoiceOrderId)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        long materialId = extractLong(materialResponse, "material_id");
+        String materialNo = findString("acct_material", "material_no", materialId);
+
+        mockMvc.perform(get("/api/admin/accounting-materials")
+                .header("Authorization", "Bearer " + accountingToken)
+                .param("status", "PENDING_SUPPLEMENT")
+                .param("related_month", "2026-05"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.records[*].material_no", hasItem(materialNo)));
+        mockMvc.perform(get("/api/admin/accounting-materials/{material_id}", materialId)
+                .header("Authorization", "Bearer " + accountingToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.material_id").value(materialId));
+    }
+
+    @Test
     void should_import_reconciliation_records_without_mutating_payment_or_refund_status() throws Exception {
         String studentToken = appLogin("DEMO_APP_STUDENT");
         String serviceToken = adminLogin("DEMO_SERVICE");

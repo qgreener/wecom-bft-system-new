@@ -23,6 +23,7 @@ import com.wecombft.interfaces.dto.finance.AccountingMaterialCloseRequest;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialCreateRequest;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialActionRequest;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialDownloadResponse;
+import com.wecombft.interfaces.dto.finance.AccountingMaterialPage;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialResponse;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialUploadRequest;
 import com.wecombft.interfaces.dto.finance.AccountingWorkbenchSummaryResponse;
@@ -110,6 +111,25 @@ public class AfterSalesFinanceController {
         @PathVariable("refund_id") long refundId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(service.appRefundDetail(authorization, refundId), TraceIds.currentOrCreate()));
+    }
+
+    @GetMapping("/api/admin/refunds")
+    @RequireAnyPermission({"refund:review:write", "accounting:material:write"})
+    public ResponseEntity<ApiResponse<RefundPage>> adminRefunds(
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "order_no", required = false) String orderNo
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.adminRefunds(AdminPrincipalContext.currentOrNull(), status, orderNo),
+            TraceIds.currentOrCreate()));
+    }
+
+    @GetMapping("/api/admin/refunds/{refund_id}")
+    @RequireAnyPermission({"refund:review:write", "accounting:material:write"})
+    public ResponseEntity<ApiResponse<RefundResponse>> adminRefundDetail(@PathVariable("refund_id") long refundId) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.adminRefundDetail(AdminPrincipalContext.currentOrNull(), refundId),
+            TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/refunds/{refund_id}/approve")
@@ -227,6 +247,25 @@ public class AfterSalesFinanceController {
         return ResponseEntity.ok(ApiResponse.ok(service.appInvoices(authorization), TraceIds.currentOrCreate()));
     }
 
+    @GetMapping("/api/admin/invoices")
+    @RequireAnyPermission({"tax:invoice:write", "invoice:read"})
+    public ResponseEntity<ApiResponse<InvoicePage>> adminInvoices(
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "order_no", required = false) String orderNo
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.adminInvoices(AdminPrincipalContext.currentOrNull(), status, orderNo),
+            TraceIds.currentOrCreate()));
+    }
+
+    @GetMapping("/api/admin/invoices/{invoice_id}")
+    @RequireAnyPermission({"tax:invoice:write", "invoice:read"})
+    public ResponseEntity<ApiResponse<InvoiceResponse>> adminInvoiceDetail(@PathVariable("invoice_id") long invoiceId) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.adminInvoiceDetail(AdminPrincipalContext.currentOrNull(), invoiceId),
+            TraceIds.currentOrCreate()));
+    }
+
     @PostMapping("/api/admin/invoices/{invoice_id}/issue")
     @RequirePermission("tax:invoice:write")
     public ResponseEntity<ApiResponse<InvoiceResponse>> issueInvoice(
@@ -311,6 +350,27 @@ public class AfterSalesFinanceController {
     @RequirePermission("finance:reconciliation:write")
     public ResponseEntity<ApiResponse<ReconciliationBatchResponse>> reconciliationBatchRecords(@PathVariable("batch_id") long batchId) {
         return reconciliationDetail(batchId);
+    }
+
+    @GetMapping("/api/admin/accounting-materials")
+    @RequirePermission("accounting:material:write")
+    public ResponseEntity<ApiResponse<AccountingMaterialPage>> accountingMaterials(
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "related_month", required = false) String relatedMonth
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.accountingMaterials(AdminPrincipalContext.currentOrNull(), status, relatedMonth),
+            TraceIds.currentOrCreate()));
+    }
+
+    @GetMapping("/api/admin/accounting-materials/{material_id}")
+    @RequirePermission("accounting:material:write")
+    public ResponseEntity<ApiResponse<AccountingMaterialResponse>> accountingMaterialDetail(
+        @PathVariable("material_id") long materialId
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.accountingMaterialDetail(AdminPrincipalContext.currentOrNull(), materialId),
+            TraceIds.currentOrCreate()));
     }
 
     @PostMapping("/api/admin/accounting-materials")

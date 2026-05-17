@@ -1,10 +1,51 @@
 {
   "pages": [
+    "pages/courses/list",
+    "pages/learning/index",
+    "pages/mine/index",
+    "pages/courses/detail",
+    "pages/order/confirm",
+    "pages/order/list",
+    "pages/order/detail",
+    "pages/payment/success",
+    "pages/learning/detail",
+    "pages/auth/login",
+    "pages/refund/apply",
+    "pages/refund/detail",
+    "pages/invoice/titles",
+    "pages/invoice/apply",
+    "pages/invoice/detail",
+    "pages/address/list",
+    "pages/address/edit",
+    "pages/logistics/detail",
+    "pages/notifications/list",
+    "pages/notifications/detail",
     "pages/index/index"
   ],
   "window": {
-    "navigationBarTitleText": "WeCom BFT",
-    "navigationBarBackgroundColor": "#111827",
-    "navigationBarTextStyle": "white"
+    "navigationBarTitleText": "学员端",
+    "navigationBarBackgroundColor": "#0f172a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f6f8fb"
+  },
+  "tabBar": {
+    "color": "#64748b",
+    "selectedColor": "#0f766e",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/courses/list",
+        "text": "课程"
+      },
+      {
+        "pagePath": "pages/learning/index",
+        "text": "学习中心"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
   }
 }

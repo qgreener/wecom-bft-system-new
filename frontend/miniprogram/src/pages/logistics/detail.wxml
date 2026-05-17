@@ -1,0 +1,19 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载物流详情</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{order}}">
+    <view class="card gap">
+      <view class="h2 section">接口缺口</view>
+      <view class="subtle">{{gap}}</view>
+    </view>
+
+    <view wx:for="{{shipments}}" wx:key="shipment_id" class="card">
+      <view class="between">
+        <view class="h2">{{item.shipment_no}}</view>
+        <text class="status-tag {{item.status_tone}}">{{item.status_text}}</text>
+      </view>
+      <view class="subtle">收货地址：{{item.receiver_line}}</view>
+      <view class="subtle">创建：{{item.created_text}}</view>
+    </view>
+  </view>
+</view>

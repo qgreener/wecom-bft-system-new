@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="card">
+    <view class="h2 section">已保存抬头</view>
+    <view wx:if="{{records.length === 0}}" class="subtle">暂无抬头</view>
+    <view wx:for="{{records}}" wx:key="title_id" class="line">
+      <view>{{item.title_name}}</view>
+      <view class="subtle">{{item.title_type}} · {{item.tax_no || '无税号'}} · {{item.email || '无邮箱'}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="h2 section">保存默认抬头</view>
+    <view class="chip-row">
+      <view class="chip {{titleType === 'PERSONAL' ? 'active' : ''}}" data-type="PERSONAL" bindtap="setType">个人</view>
+      <view class="chip {{titleType === 'ENTERPRISE' ? 'active' : ''}}" data-type="ENTERPRISE" bindtap="setType">企业</view>
+    </view>
+    <input class="input section" data-field="titleName" value="{{titleName}}" bindinput="input" placeholder="抬头名称" />
+    <input wx:if="{{titleType === 'ENTERPRISE'}}" class="input section" data-field="taxNo" value="{{taxNo}}" bindinput="input" placeholder="税号" />
+    <input class="input section" data-field="email" value="{{email}}" bindinput="input" placeholder="接收邮箱" />
+    <view class="btn" bindtap="save">保存</view>
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+</view>

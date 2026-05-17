@@ -1,0 +1,26 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载课程学习内容</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{detail}}">
+    <view class="card">
+      <view class="title">课程学习</view>
+      <view class="subtle">权益编号：{{detail.entitlement_id}}</view>
+    </view>
+    <view class="card">
+      <view style="height: 340rpx; border-radius: 12rpx; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center;">视频/直播区域</view>
+      <view class="subtle" style="margin-top: 16rpx;">直播未开始、回放地址或资源文件均以后端课节字段为准。</view>
+    </view>
+    <view class="card">
+      <view class="h2 section">章节课节</view>
+      <view wx:if="{{nodes.length === 0}}" class="subtle">暂无课节</view>
+      <view wx:for="{{nodes}}" wx:key="node_id" class="line">
+        <view>{{item.title}}</view>
+        <view class="subtle">{{item.node_type}} {{item.type_text}} {{item.live_time_text}}</view>
+      </view>
+    </view>
+    <view wx:if="{{detail.course_group_qr}}" class="card" bindtap="previewQr">
+      <view class="h2 section">课程群二维码</view>
+      <image src="{{detail.course_group_qr}}" mode="aspectFit" style="width: 260rpx; height: 260rpx;" />
+    </view>
+  </view>
+</view>

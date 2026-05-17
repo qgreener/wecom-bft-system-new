@@ -1,0 +1,48 @@
+<view class="page with-bottom-bar">
+  <view wx:if="{{loading}}" class="loading">加载课程详情</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{detail}}">
+    <image wx:if="{{detail.cover_url}}" src="{{detail.cover_url}}" mode="aspectFill" style="width: 100%; height: 320rpx; border-radius: 12rpx; margin-bottom: 20rpx;" />
+    <view class="card">
+      <view class="between">
+        <view class="title">{{detail.course_title}}</view>
+        <text class="status-tag {{detail.status_tone}}">{{detail.status_text}}</text>
+      </view>
+      <view class="subtle section">{{detail.summary}}</view>
+      <view class="status-tag info">{{detail.type_text}}</view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section">售卖规格</view>
+      <view wx:for="{{specs}}" wx:key="spec_id" class="line between" data-id="{{item.spec_id}}" data-price="{{item.sale_price_cent}}" bindtap="selectSpec">
+        <view>
+          <view>{{item.spec_name}}</view>
+          <view class="subtle">含实物：{{item.contains_physical ? '是' : '否'}} · {{item.status_text}}</view>
+        </view>
+        <view class="price">{{item.price_text}}</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section">课程详情</view>
+      <view class="subtle">{{detail.detail || '暂无详情'}}</view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section">课程安排</view>
+      <view wx:if="{{lessons.length === 0}}" class="subtle">暂无课节</view>
+      <view wx:for="{{lessons}}" wx:key="node_id" class="line">
+        <view>{{item.title}}</view>
+        <view class="subtle">{{item.node_type}} {{item.type_text}} {{item.time_text}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <view>
+      <view class="subtle">选中规格</view>
+      <view class="price">{{selectedPriceText}}</view>
+    </view>
+    <view class="btn" bindtap="buy">立即购买</view>
+  </view>
+</view>

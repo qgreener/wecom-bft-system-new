@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="card gap">
+    <view class="h2 section">接口缺口</view>
+    <view class="subtle">{{message}}</view>
+  </view>
+</view>

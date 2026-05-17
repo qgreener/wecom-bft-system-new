@@ -118,6 +118,10 @@ public class PermissionCatalog {
                 new MenuPolicy("purchase.orders", "采购订单", "supply", 210),
                 new MenuPolicy("fulfillment.shipments", "发货管理", "supply", 220),
                 new MenuPolicy("trade.orders", "订单管理", "trade", 300),
+                new MenuPolicy("refund.reviews", "退款处理", "trade", 310),
+                new MenuPolicy("invoice.manage", "开票管理", "finance", 400),
+                new MenuPolicy("finance.reconciliation", "收款对账", "finance", 410),
+                new MenuPolicy("accounting.workspace", "代账管理", "finance", 420),
                 new MenuPolicy("system.settings", "系统设置", "system", 900),
                 new MenuPolicy("system.audit-logs", "操作日志", "system", 910)
             ),

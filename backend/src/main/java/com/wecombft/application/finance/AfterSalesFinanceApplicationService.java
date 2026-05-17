@@ -57,6 +57,7 @@ import com.wecombft.application.command.finance.RefundCallbackCommand;
 import com.wecombft.application.command.finance.RefundManualCompleteCommand;
 import com.wecombft.application.command.finance.RefundRejectCommand;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialDownloadResponse;
+import com.wecombft.interfaces.dto.finance.AccountingMaterialPage;
 import com.wecombft.interfaces.dto.finance.AccountingMaterialResponse;
 import com.wecombft.interfaces.dto.finance.AccountingWorkbenchSummaryResponse;
 import com.wecombft.interfaces.dto.finance.CompensationRetryResponse;
@@ -195,6 +196,37 @@ public class AfterSalesFinanceApplicationService {
             """,
             this::mapRefund,
             student.studentId()).stream().map(this::toRefundResponse).toList());
+    }
+
+    public RefundPage adminRefunds(AdminPrincipal principal, String status, String orderNo) {
+        requireAdmin(principal);
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+            select id, refund_no, order_id, order_no, payment_id, student_id, apply_amount_cent,
+                   approved_amount_cent, refund_reason, apply_description, status, reviewer_user_id,
+                   review_comment, reject_reason, refund_channel, external_refund_no,
+                   manual_voucher_no, manual_voucher_file, failure_reason, refunded_at,
+                   entitlement_action, created_at
+            from pay_refund
+            where 1 = 1
+            """);
+        if (status != null && !status.isBlank()) {
+            sql.append(" and status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        if (orderNo != null && !orderNo.isBlank()) {
+            sql.append(" and order_no = ?");
+            args.add(orderNo.trim());
+        }
+        sql.append(" order by created_at desc, id desc");
+        return new RefundPage(jdbcTemplate.query(sql.toString(), this::mapRefund, args.toArray()).stream()
+            .map(this::toRefundResponse)
+            .toList());
+    }
+
+    public RefundResponse adminRefundDetail(AdminPrincipal principal, long refundId) {
+        requireAdmin(principal);
+        return toRefundResponse(requireRefund(refundId));
     }
 
     public RefundResponse appRefundDetail(String authorizationHeader, long refundId) {
@@ -543,6 +575,36 @@ public class AfterSalesFinanceApplicationService {
             student.studentId()).stream().map(this::toInvoiceResponse).toList());
     }
 
+    public InvoicePage adminInvoices(AdminPrincipal principal, String status, String orderNo) {
+        requireAdmin(principal);
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+            select id, invoice_apply_no, order_id, order_no, student_id, title_type, title_name,
+                   tax_no, email, invoice_amount_cent, status, invoice_channel, invoice_no,
+                   invoice_file, issued_at, source_refund_id, red_invoice_no, red_invoice_file,
+                   red_reversed_at, failure_reason, created_at
+            from tax_invoice
+            where 1 = 1
+            """);
+        if (status != null && !status.isBlank()) {
+            sql.append(" and status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        if (orderNo != null && !orderNo.isBlank()) {
+            sql.append(" and order_no = ?");
+            args.add(orderNo.trim());
+        }
+        sql.append(" order by created_at desc, id desc");
+        return new InvoicePage(jdbcTemplate.query(sql.toString(), this::mapInvoice, args.toArray()).stream()
+            .map(this::toInvoiceResponse)
+            .toList());
+    }
+
+    public InvoiceResponse adminInvoiceDetail(AdminPrincipal principal, long invoiceId) {
+        requireAdmin(principal);
+        return toInvoiceResponse(requireInvoice(invoiceId));
+    }
+
     @Transactional
     public InvoiceResponse issueInvoice(AdminPrincipal principal, String idempotencyKey, long invoiceId, InvoiceIssueCommand command) {
         requireAdmin(principal);
@@ -811,6 +873,36 @@ public class AfterSalesFinanceApplicationService {
 
     public ReconciliationBatchResponse reconciliationDetail(long batchId) {
         return toReconciliationBatchResponse(requireReconciliationBatch(batchId), reconciliationRecords(batchId));
+    }
+
+    public AccountingMaterialPage accountingMaterials(AdminPrincipal principal, String status, String relatedMonth) {
+        requireAdmin(principal);
+        List<Object> args = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("""
+            select id, material_no, material_type, status, related_month, order_id, order_no,
+                   related_object_type, related_object_id, related_object_no, request_user_id,
+                   assignee_user_id, purpose, due_at, file_refs, uploaded_by, uploaded_at,
+                   confirmed_by, confirmed_at, closed_reason
+            from acct_material
+            where 1 = 1
+            """);
+        if (status != null && !status.isBlank()) {
+            sql.append(" and status = ?");
+            args.add(status.trim().toUpperCase());
+        }
+        if (relatedMonth != null && !relatedMonth.isBlank()) {
+            sql.append(" and related_month = ?");
+            args.add(relatedMonth.trim());
+        }
+        sql.append(" order by due_at asc, id desc");
+        return new AccountingMaterialPage(jdbcTemplate.query(sql.toString(), this::mapMaterial, args.toArray()).stream()
+            .map(this::toAccountingMaterialResponse)
+            .toList());
+    }
+
+    public AccountingMaterialResponse accountingMaterialDetail(AdminPrincipal principal, long materialId) {
+        requireAdmin(principal);
+        return toAccountingMaterialResponse(requireMaterial(materialId));
     }
 
     @Transactional

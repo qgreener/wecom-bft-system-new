@@ -1,0 +1,52 @@
+<view class="page with-bottom-bar">
+  <view wx:if="{{loading}}" class="loading">加载订单详情</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{order}}">
+    <view class="card">
+      <view class="title">订单详情</view>
+      <view class="subtle section">{{order.order_no}}</view>
+      <view class="status-row">
+        <text wx:for="{{order.status_tags}}" wx:key="label" class="status-tag {{item.tone}}">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2">{{order.course_title}}</view>
+      <view class="subtle">规格：{{order.spec_name}}</view>
+      <view class="line between"><text>实付金额</text><text class="price">{{order.paid_text}}</text></view>
+      <view class="line between"><text>商品金额</text><text>{{order.total_text}}</text></view>
+    </view>
+
+    <view wx:if="{{order.fulfillment_status !== 'NO_SHIPMENT'}}" class="card" bindtap="runAction" data-action="viewLogistics">
+      <view class="between">
+        <view>
+          <view class="h2">物流信息</view>
+          <view class="subtle">{{order.receiver_line}}</view>
+        </view>
+        <text class="muted">查看</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section">订单信息</view>
+      <view class="line between"><text>下单时间</text><text>{{order.created_text}}</text></view>
+      <view class="line between"><text>支付截止</text><text>{{order.expire_text}}</text></view>
+      <view class="line between"><text>支付时间</text><text>{{order.paid_at_text}}</text></view>
+      <view wx:if="{{order.payment_status === 'PENDING'}}" class="subtle">{{order.countdown_text}}</view>
+    </view>
+
+    <view class="card">
+      <view class="between">
+        <view class="h2">发票</view>
+        <view class="btn ghost" bindtap="invoiceDetail">查看发票单</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <view class="subtle">{{acting ? '处理中，完成后会重新查询订单' : '操作以后端状态为准'}}</view>
+    <view class="row" style="gap: 12rpx; flex-wrap: wrap; justify-content: flex-end;">
+      <view wx:for="{{actions}}" wx:key="code" class="btn {{item.style}}" data-action="{{item.code}}" bindtap="runAction">{{item.label}}</view>
+    </view>
+  </view>
+</view>

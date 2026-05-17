@@ -85,6 +85,32 @@ class AdminAuthAndPermissionControllerTest {
         assertOrderMenu("DEMO_ACCOUNTING");
     }
 
+    @Test
+    void should_expose_s8_core_business_menus_from_permission_return() throws Exception {
+        String superAdminToken = loginAs("DEMO_ADMIN");
+        mockMvc.perform(get("/api/admin/auth/me").header("Authorization", "Bearer " + superAdminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("refund.reviews")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("invoice.manage")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("finance.reconciliation")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("accounting.workspace")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("system.settings")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("system.audit-logs")));
+
+        String serviceToken = loginAs("DEMO_SERVICE");
+        mockMvc.perform(get("/api/admin/auth/me").header("Authorization", "Bearer " + serviceToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("refund.reviews")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("invoice.readonly")));
+
+        String accountingToken = loginAs("DEMO_ACCOUNTING");
+        mockMvc.perform(get("/api/admin/auth/me").header("Authorization", "Bearer " + accountingToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("invoice.manage")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("finance.reconciliation")))
+            .andExpect(jsonPath("$.data.menus[*].menu_code", hasItem("accounting.workspace")));
+    }
+
     private void assertOrderMenu(String userNo) throws Exception {
         String token = loginAs(userNo);
         mockMvc.perform(get("/api/admin/auth/me").header("Authorization", "Bearer " + token))

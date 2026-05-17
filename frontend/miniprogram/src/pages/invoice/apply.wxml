@@ -1,0 +1,26 @@
+<view class="page with-bottom-bar">
+  <view class="card">
+    <view class="h2">申请开票</view>
+    <view class="line between"><text>订单编号</text><text>{{orderNo}}</text></view>
+    <view class="line between"><text>开票金额</text><text class="price">{{amountText}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="h2 section">选择抬头</view>
+    <view wx:if="{{titles.length === 0}}" class="subtle">暂无抬头，请先在发票信息页保存</view>
+    <view wx:for="{{titles}}" wx:key="title_id" class="line between" data-id="{{item.title_id}}" data-email="{{item.email}}" bindtap="selectTitle">
+      <view>
+        <view>{{item.title_name}}</view>
+        <view class="subtle">{{item.title_type}} · {{item.tax_no || '无税号'}}</view>
+      </view>
+      <text class="status-tag {{selectedTitleId === item.title_id ? 'success' : ''}}">{{selectedTitleId === item.title_id ? '已选' : '选择'}}</text>
+    </view>
+    <input class="input section" value="{{email}}" bindinput="onEmailInput" placeholder="接收邮箱" />
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="bottom-bar">
+    <view class="subtle">发票金额由后端锁定，不允许手动修改</view>
+    <view class="btn {{submitting ? 'disabled' : ''}}" bindtap="submit">{{submitting ? '提交中' : '提交申请'}}</view>
+  </view>
+</view>

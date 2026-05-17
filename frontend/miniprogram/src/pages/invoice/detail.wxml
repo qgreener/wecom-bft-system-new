@@ -1,0 +1,16 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载发票详情</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{invoice}}" class="card">
+    <view class="between">
+      <view class="title">发票详情</view>
+      <text class="status-tag {{statusTone}}">{{statusText}}</text>
+    </view>
+    <view class="subtle section">{{invoice.invoice_apply_no}}</view>
+    <view class="line between"><text>订单编号</text><text>{{invoice.order_no}}</text></view>
+    <view class="line between"><text>发票金额</text><text class="price">{{amountText}}</text></view>
+    <view class="line between"><text>开票号</text><text>{{invoice.invoice_no || '-'}}</text></view>
+    <view class="line between"><text>开票时间</text><text>{{invoice.issued_at || '-'}}</text></view>
+    <view wx:if="{{invoice.failure_reason}}" class="error">{{invoice.failure_reason}}</view>
+  </view>
+</view>

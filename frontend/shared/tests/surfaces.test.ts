@@ -5,7 +5,7 @@ import { formatSurfaceLine, healthEndpoint, surfaces } from "../src/index";
 describe("shared frontend boundaries", () => {
   it("keeps health endpoint and app surfaces stable", () => {
     expect(healthEndpoint).toBe("/api/health");
-    expect(Object.keys(surfaces).sort()).toEqual(["admin", "lead", "supplier", "wecomSidebar"]);
+    expect(Object.keys(surfaces).sort()).toEqual(["admin", "lead", "miniprogram", "supplier", "wecomSidebar"]);
   });
 
   it("formats surface lines for skeleton pages", () => {

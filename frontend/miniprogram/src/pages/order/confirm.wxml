@@ -1,0 +1,41 @@
+<view class="page with-bottom-bar">
+  <view wx:if="{{!loggedIn || !mobileBound}}" class="card">
+    <view class="h2 section">交易前需完成登录和手机号授权</view>
+    <view class="subtle section">{{error}}</view>
+    <view class="btn" bindtap="login">去登录/授权</view>
+  </view>
+
+  <view wx:elif="{{loading}}" class="loading">确认订单信息</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{confirm}}">
+    <view class="card">
+      <view class="h2">{{confirm.course_title}}</view>
+      <view class="subtle">规格：{{confirm.spec_name}}</view>
+    </view>
+
+    <view wx:if="{{confirm.contains_physical}}" class="card" bindtap="address">
+      <view class="between">
+        <view>
+          <view class="h2">收货地址</view>
+          <view class="subtle">{{confirm.receiver_line}}</view>
+        </view>
+        <text class="muted">选择</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="h2 section">金额明细</view>
+      <view class="line between"><text>商品金额</text><text>{{confirm.total_text}}</text></view>
+      <view class="line between"><text>税务规则</text><text>{{confirm.tax_rule}}</text></view>
+      <view class="line between"><text>合计应付</text><text class="price">{{confirm.amount_text}}</text></view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <view>
+      <view class="subtle">合计</view>
+      <view class="price">{{confirm ? confirm.amount_text : '-'}}</view>
+    </view>
+    <view class="btn {{submitting ? 'disabled' : ''}}" bindtap="submit">{{submitting ? '提交中' : '提交订单并支付'}}</view>
+  </view>
+</view>

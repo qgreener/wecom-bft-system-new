@@ -21,6 +21,13 @@ export const surfaces: Record<string, AppSurface> = {
     port: 5174,
     authBoundary: "企微 JS-SDK 上下文签名、内部登录态和运营数据范围"
   },
+  miniprogram: {
+    name: "小程序端",
+    routeBase: "/miniprogram/",
+    apiPrefix: "/api/app/**",
+    port: 0,
+    authBoundary: "微信登录态、手机号授权和学员交易边界"
+  },
   supplier: {
     name: "供货商 H5",
     routeBase: "/h5/supplier/",
