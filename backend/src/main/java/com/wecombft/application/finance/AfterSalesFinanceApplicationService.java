@@ -43,6 +43,8 @@ import com.wecombft.application.command.finance.AccountingMaterialConfirmCommand
 import com.wecombft.application.command.finance.AccountingMaterialCreateCommand;
 import com.wecombft.application.command.finance.AccountingMaterialUploadCommand;
 import com.wecombft.application.command.finance.CompensationRetryCommand;
+import com.wecombft.application.command.finance.ReconciliationCheckCommand;
+import com.wecombft.application.command.finance.RefundRetryCommand;
 import com.wecombft.application.command.finance.InvoiceApplyCommand;
 import com.wecombft.application.command.finance.InvoiceIssueCallbackCommand;
 import com.wecombft.application.command.finance.InvoiceIssueCommand;
@@ -365,6 +367,62 @@ public class AfterSalesFinanceApplicationService {
             refundId);
         runRefundSuccessSideEffects(requireRefund(refundId), refundedAt, principal.userId());
         auditLogService.writeSuccess(principal, "REFUND", "REFUND_MANUAL_COMPLETE", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"status\":\"REFUNDED\"}");
+        return toRefundResponse(requireRefund(refundId));
+    }
+
+    @Transactional
+    public RefundResponse retryRefund(AdminPrincipal principal, String idempotencyKey, long refundId, RefundRetryCommand command) {
+        requireAdmin(principal);
+        requireIdempotencyKey(idempotencyKey);
+        RefundRow refund = requireRefund(refundId);
+        if ("PROCESSING".equals(refund.status()) || "MANUAL_REQUIRED".equals(refund.status()) || "REFUNDED".equals(refund.status())) {
+            return toRefundResponse(refund);
+        }
+        if (!"FAILED".equals(refund.status())) {
+            throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "仅退款失败可重试");
+        }
+        String retryMode = normalizeChoice(
+            command == null ? null : command.retryMode(),
+            List.of("ORIGINAL", "MANUAL_REQUIRED"),
+            "重试模式非法");
+        String nextStatus = "ORIGINAL".equals(retryMode) ? "PROCESSING" : "MANUAL_REQUIRED";
+        String entitlementAction = defaultString(refund.entitlementAction(), "FREEZE");
+        jdbcTemplate.update(
+            """
+            update pay_refund
+            set status = ?,
+                refund_channel = ?,
+                failure_reason = null,
+                entitlement_action = ?,
+                updated_by = ?,
+                version = version + 1
+            where id = ? and status = 'FAILED'
+            """,
+            nextStatus,
+            "ORIGINAL".equals(retryMode) ? "ORIGINAL" : "MANUAL",
+            entitlementAction,
+            principal.userId(),
+            refundId);
+        jdbcTemplate.update(
+            """
+            update trade_order
+            set refund_status = ?,
+                updated_by = ?,
+                version = version + 1
+            where id = ? and refund_status = 'FAILED'
+            """,
+            nextStatus,
+            principal.userId(),
+            refund.orderId());
+        auditLogService.writeSuccess(
+            principal,
+            "REFUND",
+            "REFUND_RETRY",
+            "PAY_REFUND",
+            refund.id(),
+            refund.refundNo(),
+            refund.orderId(),
+            "{\"status\":\"" + nextStatus + "\",\"retry_mode\":\"" + retryMode + "\"}");
         return toRefundResponse(requireRefund(refundId));
     }
 
@@ -873,6 +931,118 @@ public class AfterSalesFinanceApplicationService {
 
     public ReconciliationBatchResponse reconciliationDetail(long batchId) {
         return toReconciliationBatchResponse(requireReconciliationBatch(batchId), reconciliationRecords(batchId));
+    }
+
+    @Transactional
+    public ReconciliationRecordResponse checkReconciliationRecord(
+        AdminPrincipal principal,
+        String idempotencyKey,
+        long reconciliationId,
+        ReconciliationCheckCommand command
+    ) {
+        requireAdmin(principal);
+        requireIdempotencyKey(idempotencyKey);
+        ReconciliationRecordRow record = requireReconciliationRecord(reconciliationId);
+        boolean targetChecked = command == null || command.checkedFlag() == null ? true : command.checkedFlag();
+        if (record.checkedFlag() == targetChecked) {
+            return mapReconciliationRecordResponse(record);
+        }
+        String differenceReason = command == null ? null : command.differenceReason();
+        if (!"MATCHED".equals(record.result()) && targetChecked && (differenceReason == null || differenceReason.isBlank())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "差异核对需填写差异原因");
+        }
+        jdbcTemplate.update(
+            """
+            update finance_reconciliation_record
+            set checked_flag = ?,
+                checked_by = ?,
+                checked_at = ?,
+                difference_reason = coalesce(?, difference_reason),
+                updated_by = ?,
+                version = version + 1
+            where id = ?
+            """,
+            targetChecked ? 1 : 0,
+            principal.userId(),
+            LocalDateTime.now(),
+            blankToNull(differenceReason),
+            principal.userId(),
+            reconciliationId);
+        auditLogService.writeSuccess(
+            principal,
+            "RECONCILIATION",
+            targetChecked ? "RECONCILIATION_CHECK" : "RECONCILIATION_UNCHECK",
+            "FINANCE_RECONCILIATION_RECORD",
+            record.id(),
+            record.batchNo(),
+            record.orderId(),
+            "{\"checked_flag\":" + targetChecked + ",\"difference_reason\":\"" + sanitizeForJson(differenceReason) + "\"}");
+        return mapReconciliationRecordResponse(requireReconciliationRecord(reconciliationId));
+    }
+
+    private ReconciliationRecordRow requireReconciliationRecord(long recordId) {
+        return jdbcTemplate.query(
+                """
+                select id, batch_id, batch_no, bill_month, bill_source, record_type, order_id,
+                       order_no, payment_id, refund_id, merchant_order_no, external_transaction_no,
+                       system_amount_cent, bill_amount_cent, fee_amount_cent, result, difference_reason,
+                       checked_flag
+                from finance_reconciliation_record
+                where id = ?
+                """,
+                (rs, rowNum) -> new ReconciliationRecordRow(
+                    rs.getLong("id"),
+                    rs.getLong("batch_id"),
+                    rs.getString("batch_no"),
+                    rs.getString("bill_month"),
+                    rs.getString("bill_source"),
+                    rs.getString("record_type"),
+                    nullableLong(rs, "order_id"),
+                    rs.getString("order_no"),
+                    nullableLong(rs, "payment_id"),
+                    nullableLong(rs, "refund_id"),
+                    rs.getString("merchant_order_no"),
+                    rs.getString("external_transaction_no"),
+                    nullableLong(rs, "system_amount_cent"),
+                    nullableLong(rs, "bill_amount_cent"),
+                    nullableLong(rs, "fee_amount_cent"),
+                    rs.getString("result"),
+                    rs.getString("difference_reason"),
+                    rs.getInt("checked_flag") == 1),
+                recordId)
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "对账记录不存在"));
+    }
+
+    private ReconciliationRecordResponse mapReconciliationRecordResponse(ReconciliationRecordRow row) {
+        return new ReconciliationRecordResponse(
+            row.id(),
+            row.batchId(),
+            row.recordType(),
+            row.orderId(),
+            row.orderNo(),
+            row.paymentId(),
+            row.refundId(),
+            row.merchantOrderNo(),
+            row.externalTransactionNo(),
+            row.systemAmountCent(),
+            row.billAmountCent(),
+            row.feeAmountCent(),
+            row.result(),
+            row.differenceReason());
+    }
+
+    private record ReconciliationRecordRow(
+        long id, long batchId, String batchNo, String billMonth, String billSource, String recordType,
+        Long orderId, String orderNo, Long paymentId, Long refundId, String merchantOrderNo, String externalTransactionNo,
+        Long systemAmountCent, Long billAmountCent, Long feeAmountCent, String result, String differenceReason,
+        boolean checkedFlag
+    ) {
+    }
+
+    private static String sanitizeForJson(String value) {
+        return value == null ? "" : value.replace("\"", "\\\"");
     }
 
     public AccountingMaterialPage accountingMaterials(AdminPrincipal principal, String status, String relatedMonth) {

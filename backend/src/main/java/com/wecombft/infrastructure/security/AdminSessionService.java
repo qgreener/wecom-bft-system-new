@@ -68,15 +68,17 @@ public class AdminSessionService {
     public void requireAnyPermission(AdminPrincipal principal, List<String> permissionCodes) {
         boolean allowed = permissionCodes.stream().anyMatch(principal.permissionView().permissionCodes()::contains);
         if (!allowed) {
+            String joined = String.join(",", permissionCodes);
+            String targetNo = joined.length() > 60 ? joined.substring(0, 57) + "..." : joined;
             auditLogService.writeFailure(
                 principal,
                 "SECURITY",
                 "PERMISSION_DENIED",
                 "PERMISSION",
                 null,
-                String.join(",", permissionCodes),
+                targetNo,
                 null,
-                "缺少任一权限：" + String.join(",", permissionCodes));
+                "缺少任一权限：" + joined);
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "无权限访问该资源");
         }
     }

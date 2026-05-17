@@ -19,6 +19,7 @@ import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.interfaces.dto.finance.RefundManualCompleteRequest;
 import com.wecombft.interfaces.dto.finance.RefundPage;
 import com.wecombft.interfaces.dto.finance.RefundResponse;
+import com.wecombft.interfaces.dto.finance.RefundRetryRequest;
 import com.wecombft.interfaces.dto.finance.RefundReviewRequest;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiException;
@@ -87,6 +88,18 @@ public class RefundAdminController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(
             service.manualCompleteRefund(AdminPrincipalContext.currentOrNull(), idempotencyKey, refundId, command == null ? null : command.toCommand()),
+            TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/refunds/{refund_id}/retry")
+    @RequireAnyPermission({"refund:retry:write", "refund:review:write"})
+    public ResponseEntity<ApiResponse<RefundResponse>> retryRefund(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("refund_id") long refundId,
+        @RequestBody RefundRetryRequest command
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.retryRefund(AdminPrincipalContext.currentOrNull(), idempotencyKey, refundId, command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
     }
 }

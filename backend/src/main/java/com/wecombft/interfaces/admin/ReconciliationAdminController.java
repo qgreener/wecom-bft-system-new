@@ -12,10 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.wecombft.application.CreationResult;
 import com.wecombft.application.finance.AfterSalesFinanceApplicationService;
 import com.wecombft.infrastructure.security.AdminPrincipalContext;
+import com.wecombft.infrastructure.security.RequireAnyPermission;
 import com.wecombft.infrastructure.security.RequirePermission;
 import com.wecombft.interfaces.dto.finance.ReconciliationBatchPage;
 import com.wecombft.interfaces.dto.finance.ReconciliationBatchResponse;
+import com.wecombft.interfaces.dto.finance.ReconciliationCheckRequest;
 import com.wecombft.interfaces.dto.finance.ReconciliationImportRequest;
+import com.wecombft.interfaces.dto.finance.ReconciliationRecordResponse;
 import com.wecombft.shared.trace.TraceIds;
 import com.wecombft.shared.web.ApiResponse;
 
@@ -56,5 +59,21 @@ public class ReconciliationAdminController {
     @RequirePermission("finance:reconciliation:write")
     public ResponseEntity<ApiResponse<ReconciliationBatchResponse>> reconciliationBatchRecords(@PathVariable("batch_id") long batchId) {
         return ResponseEntity.ok(ApiResponse.ok(service.reconciliationDetail(batchId), TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/reconciliation/records/{reconciliation_id}/check")
+    @RequireAnyPermission({"finance:reconciliation:check", "finance:reconciliation:write"})
+    public ResponseEntity<ApiResponse<ReconciliationRecordResponse>> checkReconciliationRecord(
+        @RequestHeader("Idempotency-Key") String idempotencyKey,
+        @PathVariable("reconciliation_id") long reconciliationId,
+        @RequestBody ReconciliationCheckRequest command
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.checkReconciliationRecord(
+                AdminPrincipalContext.currentOrNull(),
+                idempotencyKey,
+                reconciliationId,
+                command == null ? null : command.toCommand()),
+            TraceIds.currentOrCreate()));
     }
 }

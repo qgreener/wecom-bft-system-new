@@ -305,15 +305,19 @@ const actionLabels: Record<string, string> = {
   refundApprove: "审核通过退款",
   refundReject: "驳回退款",
   refundManual: "人工退款完成",
+  refundRetry: "重试失败退款",
   ship: "确认发货",
   sign: "确认签收",
   invoiceIssue: "开具发票",
   redReverse: "发票红冲",
   reconciliationImport: "导入对账单",
+  reconciliationCheck: "核对对账记录",
   materialCreate: "创建代账材料",
   materialUpload: "上传材料文件",
   materialConfirm: "确认材料",
-  materialClose: "关闭材料"
+  materialClose: "关闭材料",
+  supplierSave: "保存供货商",
+  taxRuleSave: "保存税务规则"
 };
 
 const actionFieldDefs: Record<string, { key: string; label: string; type?: string }[]> = {
@@ -359,7 +363,27 @@ const actionFieldDefs: Record<string, { key: string; label: string; type?: strin
     { key: "remark", label: "备注" }
   ],
   materialConfirm: [{ key: "remark", label: "确认备注" }],
-  materialClose: [{ key: "close_reason", label: "关闭原因" }]
+  materialClose: [{ key: "close_reason", label: "关闭原因" }],
+  refundRetry: [
+    { key: "retry_mode", label: "重试模式 (ORIGINAL/MANUAL_REQUIRED)" },
+    { key: "remark", label: "备注" }
+  ],
+  reconciliationCheck: [
+    { key: "difference_reason", label: "差异原因" },
+    { key: "remark", label: "备注" }
+  ],
+  supplierSave: [
+    { key: "supplier_name", label: "供货商名称" },
+    { key: "contact_name", label: "联系人" },
+    { key: "contact_mobile", label: "联系电话" },
+    { key: "tax_no", label: "税号" }
+  ],
+  taxRuleSave: [
+    { key: "rule_name", label: "规则名称" },
+    { key: "tax_category", label: "税目" },
+    { key: "tax_rate", label: "税率 (0-1)" },
+    { key: "invoice_item_name", label: "发票项目名称" }
+  ]
 };
 
 function defaultActionForm(type: string): Record<string, string> {
@@ -508,25 +532,32 @@ async function submitModal(): Promise<void> {
 }
 
 function getActionId(): string {
-  if (["reconciliationImport", "materialCreate"].includes(actionType.value)) return "";
+  if (["reconciliationImport", "materialCreate", "supplierSave", "taxRuleSave"].includes(actionType.value)) return "";
   const record = actionRecord.value;
   if (!record) return "";
-  return getRecordId(record, ["id", "shipment_id", "refund_id", "invoice_id", "batch_id", "material_id", "order_id", "purchase_id", "approval_id"]) ?? "";
+  return getRecordId(record, [
+    "id", "shipment_id", "refund_id", "invoice_id", "batch_id", "material_id",
+    "order_id", "purchase_id", "approval_id", "reconciliation_id", "supplier_id", "rule_id"
+  ]) ?? "";
 }
 
 const ACTION_BINDINGS: Record<string, { urlFor: (id: string) => string; action?: string }> = {
   refundApprove:        { urlFor: (id) => `/api/admin/refunds/${id}/review`, action: "APPROVE" },
   refundReject:         { urlFor: (id) => `/api/admin/refunds/${id}/review`, action: "REJECT" },
   refundManual:         { urlFor: (id) => `/api/admin/refunds/${id}/manual-complete` },
+  refundRetry:          { urlFor: (id) => `/api/admin/refunds/${id}/retry` },
   ship:                 { urlFor: (id) => `/api/admin/shipments/${id}/ship` },
   sign:                 { urlFor: (id) => `/api/admin/shipments/${id}/sign` },
   invoiceIssue:         { urlFor: (id) => `/api/admin/invoices/${id}/issue-manual` },
   redReverse:           { urlFor: (id) => `/api/admin/invoices/${id}/red-reverse` },
   reconciliationImport: { urlFor: () => `/api/admin/reconciliation/batches` },
+  reconciliationCheck:  { urlFor: (id) => `/api/admin/reconciliation/records/${id}/check` },
   materialCreate:       { urlFor: () => `/api/admin/accounting/materials` },
   materialUpload:       { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "UPLOAD" },
   materialConfirm:      { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "CONFIRM" },
-  materialClose:        { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "CLOSE" }
+  materialClose:        { urlFor: (id) => `/api/admin/accounting/materials/${id}/actions`, action: "CLOSE" },
+  supplierSave:         { urlFor: () => `/api/admin/suppliers` },
+  taxRuleSave:          { urlFor: () => `/api/admin/tax-rules` }
 };
 
 async function executeAction(type: string, id: string): Promise<void> {
@@ -548,7 +579,8 @@ function routeActions(routeKey: RouteKey): { type: string; label: string }[] {
     refunds: [
       { type: "refundApprove", label: "审核通过" },
       { type: "refundReject", label: "驳回" },
-      { type: "refundManual", label: "人工退款" }
+      { type: "refundManual", label: "人工退款" },
+      { type: "refundRetry", label: "重试失败退款" }
     ],
     shipments: [
       { type: "ship", label: "确认发货" },
@@ -558,13 +590,18 @@ function routeActions(routeKey: RouteKey): { type: string; label: string }[] {
       { type: "invoiceIssue", label: "开具发票" },
       { type: "redReverse", label: "红冲" }
     ],
-    reconciliation: [{ type: "reconciliationImport", label: "导入对账单" }],
+    reconciliation: [
+      { type: "reconciliationImport", label: "导入对账单" },
+      { type: "reconciliationCheck", label: "核对差异记录" }
+    ],
     accounting: [
       { type: "materialCreate", label: "创建材料" },
       { type: "materialUpload", label: "上传文件" },
       { type: "materialConfirm", label: "确认" },
       { type: "materialClose", label: "关闭" }
-    ]
+    ],
+    suppliers: [{ type: "supplierSave", label: "保存供货商" }],
+    taxRules: [{ type: "taxRuleSave", label: "保存税务规则" }]
   };
   return all[routeKey] ?? [];
 }

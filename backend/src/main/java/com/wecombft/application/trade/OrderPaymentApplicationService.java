@@ -62,6 +62,7 @@ import com.wecombft.interfaces.dto.trade.OrderDetailResponse;
 import com.wecombft.interfaces.dto.trade.OrderItemResponse;
 import com.wecombft.interfaces.dto.trade.OrderListItem;
 import com.wecombft.interfaces.dto.trade.OrderPage;
+import com.wecombft.interfaces.dto.trade.PaymentAdminPage;
 import com.wecombft.interfaces.dto.trade.PaymentCallbackResponse;
 import com.wecombft.interfaces.dto.trade.PaymentPrepareResponse;
 import com.wecombft.interfaces.dto.trade.PaymentRecordResponse;
@@ -544,6 +545,86 @@ public class OrderPaymentApplicationService {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "无权查看该订单");
         }
         return toDetailResponse(order, true);
+    }
+
+    public PaymentAdminPage adminPayments(
+        AdminPrincipal principal,
+        Long orderId,
+        String merchantOrderNo,
+        String paymentResult,
+        LocalDateTime paidAtStart,
+        LocalDateTime paidAtEnd,
+        Integer pageNo,
+        Integer pageSize
+    ) {
+        if (principal == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "缺少管理端登录态");
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder condition = new StringBuilder("1 = 1");
+        if (orderId != null) {
+            condition.append(" and order_id = ?");
+            args.add(orderId);
+        }
+        if (merchantOrderNo != null && !merchantOrderNo.isBlank()) {
+            condition.append(" and merchant_order_no = ?");
+            args.add(merchantOrderNo.trim());
+        }
+        if (paymentResult != null && !paymentResult.isBlank()) {
+            List<String> allowed = List.of("SUCCESS", "FAILED", "PROCESSING", "CLOSED");
+            if (!allowed.contains(paymentResult)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "支付结果枚举非法");
+            }
+            condition.append(" and payment_result = ?");
+            args.add(paymentResult);
+        }
+        if (paidAtStart != null) {
+            condition.append(" and paid_at >= ?");
+            args.add(paidAtStart);
+        }
+        if (paidAtEnd != null) {
+            condition.append(" and paid_at <= ?");
+            args.add(paidAtEnd);
+        }
+        Integer total = jdbcTemplate.queryForObject(
+            "select count(*) from pay_payment where " + condition,
+            Integer.class,
+            args.toArray());
+        int size = pageSize == null ? DEFAULT_PAGE_SIZE : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? DEFAULT_PAGE_NO : Math.max(1, pageNo);
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+
+        List<PaymentRecordResponse> records = jdbcTemplate.query(
+            """
+            select id, payment_no, channel, payment_method, payment_result, paid_amount_cent,
+                   external_payment_no, paid_at, callback_event_no, idempotency_key, failure_reason
+            from pay_payment
+            where %s
+            order by paid_at desc, id desc
+            limit ? offset ?
+            """.formatted(condition),
+            (rs, rowNum) -> new PaymentRecordResponse(
+                rs.getLong("id"),
+                rs.getString("payment_no"),
+                rs.getString("channel"),
+                rs.getString("payment_method"),
+                rs.getString("payment_result"),
+                rs.getLong("paid_amount_cent"),
+                rs.getString("external_payment_no"),
+                toLocalDateTimeOrNull(rs, "paid_at"),
+                rs.getString("callback_event_no"),
+                rs.getString("idempotency_key"),
+                rs.getString("failure_reason")),
+            queryArgs.toArray());
+
+        return new PaymentAdminPage(records, page, size, total == null ? 0 : total);
+    }
+
+    private static LocalDateTime toLocalDateTimeOrNull(ResultSet rs, String column) throws SQLException {
+        java.sql.Timestamp ts = rs.getTimestamp(column);
+        return ts == null ? null : ts.toLocalDateTime();
     }
 
     private OrderPage queryOrders(

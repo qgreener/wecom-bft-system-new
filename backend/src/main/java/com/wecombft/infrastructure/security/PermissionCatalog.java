@@ -98,11 +98,17 @@ public class PermissionCatalog {
                 "student:read",
                 "learning:entitlement:read",
                 "trade:order:read",
+                "payment:read",
                 "refund:review:write",
+                "refund:retry:write",
                 "tax:invoice:write",
+                "tax:rule:write",
                 "finance:reconciliation:write",
+                "finance:reconciliation:check",
                 "accounting:material:write",
                 "inventory:sku:write",
+                "supplier:read",
+                "supplier:write",
                 "purchase:order:write",
                 "purchase:approval:approve",
                 "fulfillment:shipment:write",
@@ -190,7 +196,8 @@ public class PermissionCatalog {
                 "course:lesson:write",
                 "course:lesson:read",
                 "learning:record:read",
-                "learning:entitlement:read"
+                "learning:entitlement:read",
+                "student:read"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),
@@ -209,7 +216,9 @@ public class PermissionCatalog {
             Set.of(
                 "student:read",
                 "trade:order:read",
+                "payment:read",
                 "refund:review:write",
+                "refund:retry:write",
                 "invoice:read"
             ),
             List.of(
@@ -230,6 +239,8 @@ public class PermissionCatalog {
             "供应链、库存和含实物订单范围",
             Set.of(
                 "inventory:sku:write",
+                "supplier:read",
+                "supplier:write",
                 "purchase:order:write",
                 "fulfillment:shipment:write",
                 "trade:order:read",
@@ -254,9 +265,14 @@ public class PermissionCatalog {
             "授权财税模块、月份和单据范围",
             Set.of(
                 "tax:invoice:write",
+                "tax:rule:write",
                 "finance:reconciliation:write",
+                "finance:reconciliation:check",
                 "accounting:material:write",
                 "trade:order:read",
+                "payment:read",
+                "supplier:read",
+                "student:read",
                 "system:tax-config:read"
             ),
             List.of(

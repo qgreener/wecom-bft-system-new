@@ -38,6 +38,7 @@ import com.wecombft.interfaces.dto.course.CourseSpecResponse;
 import com.wecombft.interfaces.dto.course.CourseSpecsResponse;
 import com.wecombft.interfaces.dto.course.EntitlementItem;
 import com.wecombft.interfaces.dto.course.EntitlementLessonsResponse;
+import com.wecombft.interfaces.dto.course.EntitlementAdminPage;
 import com.wecombft.interfaces.dto.course.EntitlementPage;
 import com.wecombft.interfaces.dto.course.LessonNodeItem;
 import com.wecombft.interfaces.dto.course.LessonNodeResponse;
@@ -483,6 +484,75 @@ public class CourseApplicationService {
             rs.getInt("remind_stopped") == 1,
             rs.getString("course_snapshot")), args.toArray());
         return new EntitlementPage(records, page, size, records.size());
+    }
+
+    public EntitlementAdminPage adminEntitlements(
+        AdminPrincipal principal,
+        Long studentId,
+        Long courseId,
+        String status,
+        Integer pageNo,
+        Integer pageSize
+    ) {
+        if (principal == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "缺少管理端登录态");
+        }
+        List<Object> args = new ArrayList<>();
+        StringBuilder condition = new StringBuilder("1 = 1");
+        if (studentId != null) {
+            condition.append(" and student_id = ?");
+            args.add(studentId);
+        }
+        if (courseId != null) {
+            condition.append(" and course_id = ?");
+            args.add(courseId);
+        }
+        if (status != null && !status.isBlank()) {
+            List<String> allowed = List.of("ACTIVE", "FROZEN", "REVOKED");
+            if (!allowed.contains(status)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "权益状态非法");
+            }
+            condition.append(" and status = ?");
+            args.add(status);
+        }
+        if (principal.roleCodes().contains("TEACHER") && !principal.roleCodes().contains("SUPER_ADMIN")) {
+            condition.append(" and course_id in (select id from course where teacher_user_id = ? and deleted_flag = 0)");
+            args.add(principal.userId());
+        }
+        Integer total = jdbcTemplate.queryForObject(
+            "select count(*) from learning_entitlement where " + condition,
+            Integer.class,
+            args.toArray());
+
+        int size = pageSize == null ? 20 : Math.max(1, Math.min(pageSize, 100));
+        int page = pageNo == null ? 1 : Math.max(1, pageNo);
+        List<Object> queryArgs = new ArrayList<>(args);
+        queryArgs.add(size);
+        queryArgs.add((page - 1) * size);
+
+        List<EntitlementItem> records = jdbcTemplate.query(
+            """
+            select id, entitlement_no, order_id, order_no, course_id, spec_id, status,
+                   opened_at, expire_at, remind_stopped, course_snapshot
+            from learning_entitlement
+            where %s
+            order by opened_at desc, id desc
+            limit ? offset ?
+            """.formatted(condition),
+            (rs, rowNum) -> new EntitlementItem(
+                rs.getLong("id"),
+                rs.getString("entitlement_no"),
+                rs.getLong("order_id"),
+                rs.getString("order_no"),
+                rs.getLong("course_id"),
+                rs.getLong("spec_id"),
+                rs.getString("status"),
+                rs.getObject("opened_at", LocalDateTime.class),
+                rs.getObject("expire_at", LocalDateTime.class),
+                rs.getInt("remind_stopped") == 1,
+                rs.getString("course_snapshot")),
+            queryArgs.toArray());
+        return new EntitlementAdminPage(records, page, size, total == null ? 0 : total);
     }
 
     public EntitlementLessonsResponse appEntitlementLessons(String authorizationHeader, long entitlementId) {

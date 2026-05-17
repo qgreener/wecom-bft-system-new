@@ -1,16 +1,20 @@
 export type RouteKey =
   | "dashboard"
   | "orders"
+  | "payments"
   | "refunds"
   | "shipments"
   | "invoices"
   | "reconciliation"
   | "accounting"
   | "courses"
+  | "entitlements"
   | "leads"
   | "students"
   | "inventory"
   | "purchases"
+  | "suppliers"
+  | "taxRules"
   | "settings"
   | "audit";
 
@@ -153,7 +157,54 @@ export const routeRegistry: AdminRoute[] = [
     group: "crm",
     menuCodes: ["crm.students"],
     permissionCodes: ["student:read"],
+    listPath: "/api/admin/students",
+    detailPath: (id) => `/api/admin/students/${id}`,
     idFields: ["student_id"]
+  },
+  {
+    key: "entitlements",
+    path: "/entitlements",
+    title: "学习权益",
+    group: "course",
+    menuCodes: ["course.manage"],
+    permissionCodes: ["learning:entitlement:read"],
+    listPath: "/api/admin/entitlements",
+    idFields: ["entitlement_id"],
+    statusFields: ["status"]
+  },
+  {
+    key: "payments",
+    path: "/payments",
+    title: "支付记录",
+    group: "trade",
+    menuCodes: ["trade.orders"],
+    permissionCodes: ["payment:read"],
+    listPath: "/api/admin/payments",
+    idFields: ["payment_id"],
+    statusFields: ["payment_result"],
+    amountFields: ["paid_amount_cent"]
+  },
+  {
+    key: "suppliers",
+    path: "/suppliers",
+    title: "供货商管理",
+    group: "supply",
+    menuCodes: ["purchase.orders"],
+    permissionCodes: ["supplier:read"],
+    listPath: "/api/admin/suppliers",
+    idFields: ["supplier_id"],
+    statusFields: ["access_status", "status"]
+  },
+  {
+    key: "taxRules",
+    path: "/tax-rules",
+    title: "税务规则",
+    group: "finance",
+    menuCodes: ["invoice.manage"],
+    permissionCodes: ["tax:rule:write"],
+    listPath: "/api/admin/tax-rules",
+    idFields: ["rule_id"],
+    statusFields: ["status"]
   },
   {
     key: "inventory",
