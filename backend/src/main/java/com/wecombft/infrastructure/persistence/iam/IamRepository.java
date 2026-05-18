@@ -32,6 +32,22 @@ public class IamRepository {
             .findFirst();
     }
 
+    public Optional<UserRecord> findActiveUserByWecomUserId(String wecomUserId) {
+        if (wecomUserId == null || wecomUserId.isBlank()) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query(
+                """
+                select id, user_no, display_name, status
+                from sys_user
+                where wecom_user_id = ? and user_type = 'INTERNAL' and status = 'ACTIVE' and deleted_flag = 0
+                """,
+                userMapper(),
+                wecomUserId)
+            .stream()
+            .findFirst();
+    }
+
     public List<RoleRecord> findActiveRolesByUserId(long userId) {
         return jdbcTemplate.query(
             """

@@ -36,7 +36,7 @@ public class AdminAuthController {
     @PostMapping("/wecom-login")
     public ResponseEntity<ApiResponse<TestLoginResponse>> wecomLogin(@RequestBody WecomLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(
-            authApplicationService.mockWecomLogin(request.authCode()),
+            authApplicationService.wecomLogin(request.authCode()),
             TraceIds.currentOrCreate()));
     }
 

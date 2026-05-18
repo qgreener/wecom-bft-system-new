@@ -18,7 +18,11 @@ export const useAuthStore = defineStore("auth", () => {
   let bootstrapPromise: Promise<void> | null = null;
 
   async function bootstrap(): Promise<void> {
-    if (!hasToken.value) return;
+    if (!hasToken.value) {
+      // OAuth 流可能刚刚通过 setAccessToken 注入了 token，刷新一次本地状态
+      hasToken.value = !!getAccessToken();
+      if (!hasToken.value) return;
+    }
     if (bootstrapPromise) return bootstrapPromise;
     bootstrapPromise = loadUser().catch(() => {
       // 拉取失败说明 token 失效，清理状态让守卫重定向到登录
@@ -111,6 +115,10 @@ export const useAuthStore = defineStore("auth", () => {
     );
   }
 
+  function markAuthenticated() {
+    hasToken.value = true;
+  }
+
   return {
     hasToken,
     currentUser,
@@ -128,6 +136,9 @@ export const useAuthStore = defineStore("auth", () => {
     menuSet,
     hasNoRoles,
     visibleRoutes,
-    hasRouteAccess
+    hasRouteAccess,
+    markAuthenticated,
+    loadUser
   };
 });
+

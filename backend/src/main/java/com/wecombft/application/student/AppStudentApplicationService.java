@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.infrastructure.integration.wechat.WechatMiniappAuthAdapter;
+import com.wecombft.infrastructure.integration.wechat.WechatMiniappAuthException;
+import com.wecombft.infrastructure.integration.wechat.WechatMiniappSession;
 import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
@@ -26,35 +29,37 @@ public class AppStudentApplicationService {
     private final JdbcTemplate jdbcTemplate;
     private final IdGenerator idGenerator;
     private final AuditLogService auditLogService;
+    private final WechatMiniappAuthAdapter wechatMiniappAuthAdapter;
 
     public AppStudentApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        WechatMiniappAuthAdapter wechatMiniappAuthAdapter
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
         this.auditLogService = auditLogService;
+        this.wechatMiniappAuthAdapter = wechatMiniappAuthAdapter;
     }
 
     @Transactional
     public AppWechatLoginResponse wechatLogin(AppWechatLoginCommand command) {
         String wxCode = command.wxCode() == null ? "" : command.wxCode().trim();
-        if (!wxCode.startsWith("mock:") || wxCode.length() == "mock:".length()) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "S4 仅支持 mock 小程序登录码");
+        if (wxCode.isEmpty()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "WX_CODE_EMPTY", "wx_code 不能为空");
         }
-        String mockIdentity = wxCode.substring("mock:".length()).trim();
-        Optional<StudentSession> byUserNo = findByUserNo(mockIdentity);
-        if (byUserNo.isPresent()) {
-            StudentSession student = byUserNo.get();
-            if (!"ACTIVE".equals(student.userStatus()) || !"ACTIVE".equals(student.status())) {
-                throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "学员身份不存在或已禁用");
-            }
-            updateLastLogin(student.userId());
-            return toLoginResponse(resolveMerged(student));
+        WechatMiniappSession session;
+        try {
+            session = wechatMiniappAuthAdapter.code2Session(wxCode);
+        } catch (WechatMiniappAuthException e) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, e.errorCode(), e.getMessage());
+        }
+        String wxOpenid = session.openid();
+        if (wxOpenid == null || wxOpenid.isBlank()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "WX_OPENID_MISSING", "wx_code 解析后缺少 openid");
         }
 
-        String wxOpenid = mockIdentity;
         Optional<StudentSession> byOpenid = findByOpenid(wxOpenid);
         if (byOpenid.isPresent()) {
             StudentSession student = byOpenid.get();
@@ -63,6 +68,22 @@ public class AppStudentApplicationService {
             }
             updateLastLogin(student.userId());
             return toLoginResponse(resolveMerged(student));
+        }
+
+        // Mock-only fallback: in mock mode the adapter returns openid="mock_openid_<userNo>",
+        // map back to a seeded sys_user by user_no so existing demo students (e.g. DEMO_APP_STUDENT)
+        // are reused instead of forcing a fresh insert. Real openids never start with this prefix.
+        if (wxOpenid.startsWith("mock_openid_")) {
+            String maybeUserNo = wxOpenid.substring("mock_openid_".length());
+            Optional<StudentSession> byUserNo = findByUserNo(maybeUserNo);
+            if (byUserNo.isPresent()) {
+                StudentSession student = byUserNo.get();
+                if (!"ACTIVE".equals(student.userStatus()) || !"ACTIVE".equals(student.status())) {
+                    throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "学员身份不存在或已禁用");
+                }
+                updateLastLogin(student.userId());
+                return toLoginResponse(resolveMerged(student));
+            }
         }
 
         long userId = idGenerator.nextId();

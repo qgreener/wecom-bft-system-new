@@ -6,6 +6,11 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import com.wecombft.infrastructure.integration.wecom.WecomAuthAdapter;
+import com.wecombft.infrastructure.integration.wecom.WecomAuthAdapterException;
+import com.wecombft.infrastructure.integration.wecom.WecomUserInfo;
+import com.wecombft.infrastructure.persistence.iam.IamRepository;
+import com.wecombft.infrastructure.persistence.iam.UserRecord;
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.infrastructure.security.PermissionCatalog.DataScopePolicy;
@@ -23,9 +28,17 @@ import com.wecombft.interfaces.dto.iam.TestLoginResponse;
 public class AdminAuthApplicationService {
 
     private final AdminSessionService adminSessionService;
+    private final WecomAuthAdapter wecomAuthAdapter;
+    private final IamRepository iamRepository;
 
-    public AdminAuthApplicationService(AdminSessionService adminSessionService) {
+    public AdminAuthApplicationService(
+        AdminSessionService adminSessionService,
+        WecomAuthAdapter wecomAuthAdapter,
+        IamRepository iamRepository
+    ) {
         this.adminSessionService = adminSessionService;
+        this.wecomAuthAdapter = wecomAuthAdapter;
+        this.iamRepository = iamRepository;
     }
 
     public TestLoginResponse testLogin(String userNo) {
@@ -38,11 +51,21 @@ public class AdminAuthApplicationService {
         );
     }
 
-    public TestLoginResponse mockWecomLogin(String authCode) {
-        if (authCode == null || !authCode.startsWith("mock:") || authCode.length() == "mock:".length()) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "S3 仅支持 mock 企业微信登录码");
+    public TestLoginResponse wecomLogin(String authCode) {
+        WecomUserInfo info;
+        try {
+            info = wecomAuthAdapter.exchangeCode(authCode);
+        } catch (WecomAuthAdapterException e) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, e.errorCode(), e.getMessage());
         }
-        return testLogin(authCode.substring("mock:".length()).trim());
+        UserRecord user = iamRepository.findActiveUserByWecomUserId(info.wecomUserId())
+            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "WECOM_USER_NOT_BOUND",
+                "企微账号未绑定系统用户：wecom_user_id=" + info.wecomUserId()));
+        return testLogin(user.userNo());
+    }
+
+    public String buildWecomOAuthStartUrl(String state, String redirectUri) {
+        return wecomAuthAdapter.buildOAuthUrl(state, redirectUri).url();
     }
 
     public CurrentUserResponse currentUser(String authorizationHeader) {

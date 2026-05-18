@@ -2,7 +2,7 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-rou
 import { useAuthStore } from "@/stores/auth";
 import { routeRegistry } from "@/router/routes";
 
-const PUBLIC_PATHS = new Set<string>(["/login", "/role-application"]);
+const PUBLIC_PATHS = new Set<string>(["/login", "/role-application", "/oauth-success"]);
 
 const businessRoutes: RouteRecordRaw[] = routeRegistry.map((route) => ({
   path: route.path,
@@ -35,6 +35,12 @@ const routes: RouteRecordRaw[] = [
         name: "role-application",
         meta: { title: "申请角色", public: true, requiresAuth: true },
         component: () => import("@/views/RoleApplicationView.vue")
+      },
+      {
+        path: "oauth-success",
+        name: "oauth-success",
+        meta: { title: "登录中", public: true },
+        component: () => import("@/views/OAuthSuccessView.vue")
       }
     ]
   },

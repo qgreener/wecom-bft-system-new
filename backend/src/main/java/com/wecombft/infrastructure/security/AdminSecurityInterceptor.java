@@ -42,7 +42,10 @@ public class AdminSecurityInterceptor implements HandlerInterceptor {
 
     private boolean isPublicAdminAuthPath(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return "/api/admin/auth/test-login".equals(path) || "/api/admin/auth/wecom-login".equals(path);
+        return "/api/admin/auth/test-login".equals(path)
+            || "/api/admin/auth/wecom-login".equals(path)
+            || "/api/admin/auth/wecom-oauth/start-redirect".equals(path)
+            || "/api/admin/auth/wecom-oauth/callback".equals(path);
     }
 
     private AdminPrincipal authenticate(HttpServletRequest request, Object handler) {

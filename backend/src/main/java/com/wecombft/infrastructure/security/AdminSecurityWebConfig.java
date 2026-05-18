@@ -17,6 +17,11 @@ public class AdminSecurityWebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminSecurityInterceptor)
             .addPathPatterns("/api/admin/**", "/api/collab/**", "/api/wecom/sidebar/**")
-            .excludePathPatterns("/api/admin/auth/test-login", "/api/admin/auth/wecom-login");
+            .excludePathPatterns(
+                "/api/admin/auth/test-login",
+                "/api/admin/auth/wecom-login",
+                "/api/admin/auth/wecom-oauth/start-redirect",
+                "/api/admin/auth/wecom-oauth/callback"
+            );
     }
 }

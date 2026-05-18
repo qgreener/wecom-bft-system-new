@@ -51,6 +51,20 @@ integration:
   invoice-mode: ${INTEGRATION_INVOICE_MODE:mock}
   wecom-mode: ${INTEGRATION_WECOM_MODE:mock}
   message-mode: ${INTEGRATION_MESSAGE_MODE:mock}
+  wecom-auth-mode: ${INTEGRATION_WECOM_AUTH_MODE:mock}
+  wechat-miniapp-auth-mode: ${INTEGRATION_WECHAT_MINIAPP_AUTH_MODE:mock}
+
+wecom:
+  corp-id: ${WECOM_CORP_ID:}
+  agent-id: ${WECOM_AGENT_ID:}
+  agent-secret: ${WECOM_AGENT_SECRET:}
+  oauth-redirect-uri: ${WECOM_OAUTH_REDIRECT_URI:http://localhost:8080/api/admin/auth/wecom-oauth/callback}
+
+wechat:
+  miniapp:
+    app-id: ${WECHAT_MINIAPP_APP_ID:}
+    app-secret: ${WECHAT_MINIAPP_APP_SECRET:}
+    code2session-url: ${WECHAT_MINIAPP_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
 
 logging:
   pattern:

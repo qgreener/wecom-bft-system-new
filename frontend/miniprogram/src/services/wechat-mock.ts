@@ -1,16 +1,27 @@
 import { getMockPhone, getOrCreateMockOpenid } from "../stores/session";
 
+/**
+ * Returns the wx.login() code when available so the backend
+ * WechatMiniappAuthAdapter (real or mock) can resolve the real openid.
+ * Falls back to a `mock:<id>` string when wx.login is unavailable
+ * (开发者工具 + appid 未配置时) so end-to-end mock 流程仍可走通。
+ */
 export function getWechatLoginCode(): Promise<string> {
   return new Promise((resolve) => {
-    // 当前后端仅支持 mock: 前缀的小程序登录码，真实微信 code 在 S11/S12 接入。
     if (typeof wx?.login === "function") {
       wx.login({
-        success: () => resolve(getOrCreateMockOpenid()),
-        fail: () => resolve(getOrCreateMockOpenid())
+        success: (res) => {
+          if (res && res.code) {
+            resolve(res.code);
+            return;
+          }
+          resolve(`mock:${getOrCreateMockOpenid()}`);
+        },
+        fail: () => resolve(`mock:${getOrCreateMockOpenid()}`)
       });
       return;
     }
-    resolve(getOrCreateMockOpenid());
+    resolve(`mock:${getOrCreateMockOpenid()}`);
   });
 }
 
