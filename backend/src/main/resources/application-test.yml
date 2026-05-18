@@ -32,6 +32,13 @@ wecom:
   agent-id: TEST_AGENT_ID
   agent-secret: TEST_AGENT_SECRET
   oauth-redirect-uri: http://localhost/api/admin/auth/wecom-oauth/callback
+  callback:
+    token: TEST_CALLBACK_TOKEN
+    aes-key: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLM1234
+  approval:
+    template-id: TEST_TEMPLATE_ID
+    title-control-id: Text-TITLE
+    desc-control-id: Textarea-DESC
 
 wechat:
   miniapp:

@@ -1,17 +1,18 @@
 package com.wecombft.application.iam;
 
-import java.time.LocalDateTime;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.wecombft.application.audit.AuditLogService;
+import com.wecombft.application.notification.NotificationContent;
+import com.wecombft.application.notification.NotificationDispatchService;
+import com.wecombft.infrastructure.integration.wecom.WecomApprovalAdapter;
+import com.wecombft.infrastructure.integration.wecom.WecomApprovalCommand;
+import com.wecombft.infrastructure.integration.wecom.WecomApprovalResult;
 import com.wecombft.infrastructure.persistence.iam.ApprovalRecord;
 import com.wecombft.infrastructure.persistence.iam.IamRepository;
 import com.wecombft.infrastructure.persistence.iam.RoleRecord;
-import com.wecombft.infrastructure.persistence.notification.NotificationRepository;
-import com.wecombft.infrastructure.persistence.notification.NotificationRepository.NotificationWriteCommand;
 import com.wecombft.infrastructure.security.AdminPrincipal;
 import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.shared.id.IdGenerator;
@@ -27,20 +28,23 @@ public class RoleApplicationService {
     private final IamRepository iamRepository;
     private final AuditLogService auditLogService;
     private final IdGenerator idGenerator;
-    private final NotificationRepository notificationRepository;
+    private final NotificationDispatchService notificationDispatchService;
+    private final WecomApprovalAdapter wecomApprovalAdapter;
 
     public RoleApplicationService(
         AdminSessionService adminSessionService,
         IamRepository iamRepository,
         AuditLogService auditLogService,
         IdGenerator idGenerator,
-        NotificationRepository notificationRepository
+        NotificationDispatchService notificationDispatchService,
+        WecomApprovalAdapter wecomApprovalAdapter
     ) {
         this.adminSessionService = adminSessionService;
         this.iamRepository = iamRepository;
         this.auditLogService = auditLogService;
         this.idGenerator = idGenerator;
-        this.notificationRepository = notificationRepository;
+        this.notificationDispatchService = notificationDispatchService;
+        this.wecomApprovalAdapter = wecomApprovalAdapter;
     }
 
     @Transactional
@@ -62,6 +66,7 @@ public class RoleApplicationService {
                 role,
                 command.submitReason()));
         createRoleApplicationNotifications(principal, approval, role);
+        submitWecomApproval(principal, approval, role);
 
         auditLogService.writeSuccess(
             principal,
@@ -105,6 +110,7 @@ public class RoleApplicationService {
                 .orElseThrow(() -> new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "审批角色不存在或已停用"));
             iamRepository.grantRole(idGenerator.nextId(), approval.applicantUserId(), role.id(), approver.userId());
         }
+        notifyApplicantOfResult(finished, status, command.approvalComment());
 
         auditLogService.writeSuccess(
             approver,
@@ -123,43 +129,61 @@ public class RoleApplicationService {
         ApprovalRecord approval,
         RoleRecord role
     ) {
-        for (Long approverUserId : notificationRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")) {
-            insertNotification(
-                approverUserId,
-                "IN_APP",
-                applicant,
-                approval,
-                role);
-            insertNotification(
-                approverUserId,
-                "WECOM_CARD",
-                applicant,
-                approval,
-                role);
-        }
-    }
-
-    private void insertNotification(
-        Long approverUserId,
-        String channel,
-        AdminPrincipal applicant,
-        ApprovalRecord approval,
-        RoleRecord role
-    ) {
-        long notificationId = idGenerator.nextId();
-        notificationRepository.insertIfAbsent(new NotificationWriteCommand(
-            notificationId,
-            "NTF" + notificationId,
-            approverUserId,
-            channel,
+        NotificationContent content = new NotificationContent(
             "ROLE_APPLICATION",
             "ROLE_APPLICATION_MINIMAL",
             "角色申请待审批",
             applicant.displayName() + " 申请角色 " + role.roleName(),
             "ROLE_APPLICATION",
             approval.id(),
-            "ROLE_APPLICATION:" + approval.id() + ":" + channel,
-            applicant.userId()));
+            "ROLE_APPLICATION:" + approval.id(),
+            applicant.userId(),
+            "https://finhub.tax/admin/#/approvals");
+        for (Long approverUserId : iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")) {
+            notificationDispatchService.dispatchToInternalUser(approverUserId, content);
+        }
+    }
+
+    private void notifyApplicantOfResult(ApprovalRecord approval, String status, String comment) {
+        String title = "APPROVED".equals(status) ? "角色申请已通过" : "角色申请被驳回";
+        String body = "你的角色申请「" + approval.relatedObjectNo() + "」"
+            + ("APPROVED".equals(status) ? "已通过" : "被驳回")
+            + (comment == null || comment.isBlank() ? "" : "，备注：" + comment);
+        NotificationContent content = new NotificationContent(
+            "ROLE_APPLICATION_RESULT",
+            "ROLE_APPLICATION_RESULT_MINIMAL",
+            title,
+            body,
+            "ROLE_APPLICATION",
+            approval.id(),
+            "ROLE_APPLICATION_RESULT:" + approval.id() + ":" + status,
+            approval.applicantUserId(),
+            "https://finhub.tax/admin/#/dashboard");
+        notificationDispatchService.dispatchToInternalUser(approval.applicantUserId(), content);
+    }
+
+    private void submitWecomApproval(AdminPrincipal applicant, ApprovalRecord approval, RoleRecord role) {
+        try {
+            String applicantWecom = iamRepository.findWecomUserIdByUserId(applicant.userId()).orElse(null);
+            if (applicantWecom == null) {
+                return;
+            }
+            java.util.List<String> approvers = iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")
+                .stream()
+                .map(uid -> iamRepository.findWecomUserIdByUserId(uid).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+            WecomApprovalResult result = wecomApprovalAdapter.createApproval(new WecomApprovalCommand(
+                applicantWecom,
+                "角色申请：" + role.roleName(),
+                approval.submitReason() == null ? "(无说明)" : approval.submitReason(),
+                approvers.isEmpty() ? null : approvers));
+            if (result != null && result.success() && result.spNo() != null) {
+                iamRepository.setApprovalWecomId(approval.id(), result.spNo());
+            }
+        } catch (RuntimeException e) {
+            // 企微 OA 失败不影响本地审批单创建（doc 07 §4.2 一致：外部失败不回滚主业务）
+        }
     }
 
     private ApprovalResponse toResponse(ApprovalRecord approval) {

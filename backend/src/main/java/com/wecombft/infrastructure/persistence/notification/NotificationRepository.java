@@ -34,20 +34,25 @@ public class NotificationRepository {
             roleCode);
     }
 
-    public void insertIfAbsent(NotificationWriteCommand command) {
-        Integer existing = jdbcTemplate.queryForObject(
+    public Long insertIfAbsent(NotificationWriteCommand command) {
+        List<Long> existingIds = jdbcTemplate.queryForList(
             """
-            select count(*) from notify_message
+            select id from notify_message
             where idempotency_key = ?
               and channel = ?
-              and receiver_user_id = ?
+              and ((receiver_user_id is null and ? is null) or receiver_user_id = ?)
+              and ((receiver_student_id is null and ? is null) or receiver_student_id = ?)
+            limit 1
             """,
-            Integer.class,
+            Long.class,
             command.idempotencyKey(),
             command.channel(),
-            command.receiverUserId());
-        if (existing != null && existing > 0) {
-            return;
+            command.receiverUserId(),
+            command.receiverUserId(),
+            command.receiverStudentId(),
+            command.receiverStudentId());
+        if (!existingIds.isEmpty()) {
+            return existingIds.get(0);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -59,12 +64,13 @@ public class NotificationRepository {
                 related_object_type, related_object_id, send_status, read_status,
                 sent_at, read_at, failure_reason, retry_count, idempotency_key,
                 created_at, created_by, updated_by
-            ) values (?, ?, ?, null, ?, ?, ?, ?, ?, null, ?, ?, 'PENDING', 'UNREAD',
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, ?, 'PENDING', 'UNREAD',
                 null, null, null, 0, ?, ?, ?, ?)
             """,
             command.id(),
             command.notificationNo(),
             command.receiverUserId(),
+            command.receiverStudentId(),
             command.channel(),
             command.sceneCode(),
             command.templateCode(),
@@ -76,6 +82,22 @@ public class NotificationRepository {
             now,
             command.createdBy(),
             command.createdBy());
+        return command.id();
+    }
+
+    public void updateSendStatus(long notificationId, String status, LocalDateTime sentAt, String failureReason) {
+        jdbcTemplate.update(
+            """
+            update notify_message
+            set send_status = ?,
+                sent_at = ?,
+                failure_reason = ?
+            where id = ?
+            """,
+            status,
+            sentAt,
+            failureReason,
+            notificationId);
     }
 
     public List<NotificationRecord> search(NotificationQuery query) {
@@ -131,6 +153,7 @@ public class NotificationRepository {
         long id,
         String notificationNo,
         Long receiverUserId,
+        Long receiverStudentId,
         String channel,
         String sceneCode,
         String templateCode,
@@ -141,6 +164,44 @@ public class NotificationRepository {
         String idempotencyKey,
         Long createdBy
     ) {
+
+        public static NotificationWriteCommand forInternalUser(
+            long id,
+            String notificationNo,
+            Long receiverUserId,
+            String channel,
+            String sceneCode,
+            String templateCode,
+            String title,
+            String content,
+            String relatedObjectType,
+            Long relatedObjectId,
+            String idempotencyKey,
+            Long createdBy
+        ) {
+            return new NotificationWriteCommand(
+                id, notificationNo, receiverUserId, null, channel, sceneCode, templateCode,
+                title, content, relatedObjectType, relatedObjectId, idempotencyKey, createdBy);
+        }
+
+        public static NotificationWriteCommand forStudent(
+            long id,
+            String notificationNo,
+            Long receiverStudentId,
+            String channel,
+            String sceneCode,
+            String templateCode,
+            String title,
+            String content,
+            String relatedObjectType,
+            Long relatedObjectId,
+            String idempotencyKey,
+            Long createdBy
+        ) {
+            return new NotificationWriteCommand(
+                id, notificationNo, null, receiverStudentId, channel, sceneCode, templateCode,
+                title, content, relatedObjectType, relatedObjectId, idempotencyKey, createdBy);
+        }
     }
 
     public record NotificationQuery(String sceneCode, Long receiverUserId) {

@@ -49,17 +49,26 @@ public class CourseApplicationService {
     private final IdGenerator idGenerator;
     private final AuditLogService auditLogService;
     private final AppStudentApplicationService appStudentApplicationService;
+    private final com.wecombft.application.notification.NotificationDispatchService notificationDispatchService;
+    private final com.wecombft.infrastructure.integration.wecom.WecomApprovalAdapter wecomApprovalAdapter;
+    private final com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository;
 
     public CourseApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
         AuditLogService auditLogService,
-        AppStudentApplicationService appStudentApplicationService
+        AppStudentApplicationService appStudentApplicationService,
+        com.wecombft.application.notification.NotificationDispatchService notificationDispatchService,
+        com.wecombft.infrastructure.integration.wecom.WecomApprovalAdapter wecomApprovalAdapter,
+        com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
         this.auditLogService = auditLogService;
         this.appStudentApplicationService = appStudentApplicationService;
+        this.notificationDispatchService = notificationDispatchService;
+        this.wecomApprovalAdapter = wecomApprovalAdapter;
+        this.iamRepository = iamRepository;
     }
 
     @Transactional
@@ -283,6 +292,8 @@ public class CourseApplicationService {
             course.courseNo(),
             null,
             "{\"approval_id\":" + approvalId + ",\"approval_type\":\"" + approvalType + "\"}");
+        dispatchCourseApprovalCard(principal, approvalId, courseId, approvalType, course);
+        submitCourseWecomApproval(principal, approvalId, approvalType, course, command.submitReason());
         return new CourseApprovalResponse(
             approvalId,
             approvalNo,
@@ -290,6 +301,53 @@ public class CourseApplicationService {
             approvalType,
             "PENDING",
             "PENDING_REVIEW");
+    }
+
+    private void dispatchCourseApprovalCard(
+        AdminPrincipal applicant, long approvalId, long courseId, String approvalType, CourseRow course
+    ) {
+        com.wecombft.application.notification.NotificationContent content =
+            new com.wecombft.application.notification.NotificationContent(
+                "COURSE_APPROVAL",
+                "COURSE_APPROVAL_PENDING",
+                "课程审批待处理",
+                applicant.displayName() + " 提交课程「" + course.courseTitle() + "」" + approvalType,
+                "COURSE",
+                courseId,
+                "COURSE_APPROVAL:" + approvalId,
+                applicant.userId(),
+                "https://finhub.tax/admin/#/approvals");
+        for (Long approverUserId : iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")) {
+            notificationDispatchService.dispatchToInternalUser(approverUserId, content);
+        }
+    }
+
+    private void submitCourseWecomApproval(
+        AdminPrincipal applicant, long approvalId, String approvalType, CourseRow course, String submitReason
+    ) {
+        try {
+            String applicantWecom = iamRepository.findWecomUserIdByUserId(applicant.userId()).orElse(null);
+            if (applicantWecom == null) {
+                return;
+            }
+            java.util.List<String> approvers = iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")
+                .stream()
+                .map(uid -> iamRepository.findWecomUserIdByUserId(uid).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+            com.wecombft.infrastructure.integration.wecom.WecomApprovalResult result =
+                wecomApprovalAdapter.createApproval(
+                    new com.wecombft.infrastructure.integration.wecom.WecomApprovalCommand(
+                        applicantWecom,
+                        "课程审批：" + course.courseTitle() + " " + approvalType,
+                        submitReason == null ? "(无说明)" : submitReason,
+                        approvers.isEmpty() ? null : approvers));
+            if (result != null && result.success() && result.spNo() != null) {
+                iamRepository.setApprovalWecomId(approvalId, result.spNo());
+            }
+        } catch (RuntimeException e) {
+            // 企微 OA 失败不影响本地审批单（doc 07 §4.2）
+        }
     }
 
     @Transactional

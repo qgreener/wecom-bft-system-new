@@ -45,17 +45,26 @@ public class PurchaseApplicationService {
     private final IdGenerator idGenerator;
     private final ObjectMapper objectMapper;
     private final AuditLogService auditLogService;
+    private final com.wecombft.application.notification.NotificationDispatchService notificationDispatchService;
+    private final com.wecombft.infrastructure.integration.wecom.WecomApprovalAdapter wecomApprovalAdapter;
+    private final com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository;
 
     public PurchaseApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
         ObjectMapper objectMapper,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        com.wecombft.application.notification.NotificationDispatchService notificationDispatchService,
+        com.wecombft.infrastructure.integration.wecom.WecomApprovalAdapter wecomApprovalAdapter,
+        com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
         this.objectMapper = objectMapper;
         this.auditLogService = auditLogService;
+        this.notificationDispatchService = notificationDispatchService;
+        this.wecomApprovalAdapter = wecomApprovalAdapter;
+        this.iamRepository = iamRepository;
     }
 
     @Transactional
@@ -154,6 +163,9 @@ public class PurchaseApplicationService {
                 totalAmountCent,
                 principal.userId(),
                 principal.userId());
+            dispatchPurchaseApprovalCard(principal, approvalId, purchaseId, purchaseNo, totalAmountCent);
+            submitPurchaseWecomApproval(principal, approvalId, purchaseNo, totalAmountCent,
+                defaultString(command.submitReason(), "大额采购审批"));
         }
         auditLogService.writeSuccess(
             principal,
@@ -956,6 +968,54 @@ public class PurchaseApplicationService {
 
     private String defaultString(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value.trim();
+    }
+
+    private void dispatchPurchaseApprovalCard(
+        AdminPrincipal applicant, long approvalId, long purchaseId, String purchaseNo, long totalAmountCent
+    ) {
+        com.wecombft.application.notification.NotificationContent content =
+            new com.wecombft.application.notification.NotificationContent(
+                "PURCHASE_APPROVAL",
+                "PURCHASE_APPROVAL_PENDING",
+                "大额采购待审批",
+                applicant.displayName() + " 提交采购 " + purchaseNo + "，总金额 "
+                    + (totalAmountCent / 100.0) + " 元",
+                "PURCHASE_ORDER",
+                purchaseId,
+                "PURCHASE_APPROVAL:" + approvalId,
+                applicant.userId(),
+                "https://finhub.tax/admin/#/approvals");
+        for (Long approverUserId : iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")) {
+            notificationDispatchService.dispatchToInternalUser(approverUserId, content);
+        }
+    }
+
+    private void submitPurchaseWecomApproval(
+        AdminPrincipal applicant, long approvalId, String purchaseNo, long totalAmountCent, String submitReason
+    ) {
+        try {
+            String applicantWecom = iamRepository.findWecomUserIdByUserId(applicant.userId()).orElse(null);
+            if (applicantWecom == null) {
+                return;
+            }
+            java.util.List<String> approvers = iamRepository.findActiveUserIdsByRoleCode("SUPER_ADMIN")
+                .stream()
+                .map(uid -> iamRepository.findWecomUserIdByUserId(uid).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+            com.wecombft.infrastructure.integration.wecom.WecomApprovalResult result =
+                wecomApprovalAdapter.createApproval(
+                    new com.wecombft.infrastructure.integration.wecom.WecomApprovalCommand(
+                        applicantWecom,
+                        "大额采购：" + purchaseNo + " 总额 " + (totalAmountCent / 100.0) + " 元",
+                        submitReason,
+                        approvers.isEmpty() ? null : approvers));
+            if (result != null && result.success() && result.spNo() != null) {
+                iamRepository.setApprovalWecomId(approvalId, result.spNo());
+            }
+        } catch (RuntimeException e) {
+            // 企微 OA 失败不影响本地审批单（doc 07 §4.2）
+        }
     }
 
     private String blankToNull(String value) {

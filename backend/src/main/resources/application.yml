@@ -59,6 +59,13 @@ wecom:
   agent-id: ${WECOM_AGENT_ID:}
   agent-secret: ${WECOM_AGENT_SECRET:}
   oauth-redirect-uri: ${WECOM_OAUTH_REDIRECT_URI:http://localhost:8080/api/admin/auth/wecom-oauth/callback}
+  callback:
+    token: ${WECOM_CALLBACK_TOKEN:}
+    aes-key: ${WECOM_CALLBACK_AES_KEY:}
+  approval:
+    template-id: ${WECOM_APPROVAL_TEMPLATE_ID:}
+    title-control-id: ${WECOM_APPROVAL_TITLE_CONTROL_ID:}
+    desc-control-id: ${WECOM_APPROVAL_DESC_CONTROL_ID:}
 
 wechat:
   miniapp:

@@ -88,6 +88,8 @@ public class AfterSalesFinanceApplicationService {
     private final CallbackEventRepository callbackEventRepository;
     private final OrderDocumentLinkRepository documentLinkRepository;
     private final AuditLogService auditLogService;
+    private final com.wecombft.application.notification.NotificationDispatchService notificationDispatchService;
+    private final com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository;
 
     public AfterSalesFinanceApplicationService(
         JdbcTemplate jdbcTemplate,
@@ -97,7 +99,9 @@ public class AfterSalesFinanceApplicationService {
         LearningEntitlementService learningEntitlementService,
         CallbackEventRepository callbackEventRepository,
         OrderDocumentLinkRepository documentLinkRepository,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        com.wecombft.application.notification.NotificationDispatchService notificationDispatchService,
+        com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
@@ -107,6 +111,8 @@ public class AfterSalesFinanceApplicationService {
         this.callbackEventRepository = callbackEventRepository;
         this.documentLinkRepository = documentLinkRepository;
         this.auditLogService = auditLogService;
+        this.notificationDispatchService = notificationDispatchService;
+        this.iamRepository = iamRepository;
     }
 
     @Transactional
@@ -329,7 +335,28 @@ public class AfterSalesFinanceApplicationService {
             principal.userId(),
             refund.orderId());
         auditLogService.writeSuccess(principal, "REFUND", "REFUND_APPROVE", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"status\":\"" + nextStatus + "\",\"channel\":\"" + channel + "\"}");
+        notifyAccountingOfRefundApproved(principal, refund, nextStatus, channel);
         return toRefundResponse(requireRefund(refundId));
+    }
+
+    private void notifyAccountingOfRefundApproved(
+        AdminPrincipal approver, RefundRow refund, String nextStatus, String channel
+    ) {
+        com.wecombft.application.notification.NotificationContent content =
+            new com.wecombft.application.notification.NotificationContent(
+                "REFUND_APPROVED",
+                "REFUND_APPROVED_NOTICE",
+                "退款已审批通过，请确认财务",
+                "订单 " + refund.orderId() + " 退款单 " + refund.refundNo()
+                    + " 已审批通过，下一步：" + nextStatus + "，通道：" + channel,
+                "PAY_REFUND",
+                refund.id(),
+                "REFUND_APPROVED:" + refund.id(),
+                approver.userId(),
+                "https://finhub.tax/admin/#/refunds");
+        for (Long accountingUserId : iamRepository.findActiveUserIdsByRoleCode("ACCOUNTING")) {
+            notificationDispatchService.dispatchToInternalUser(accountingUserId, content);
+        }
     }
 
     @Transactional

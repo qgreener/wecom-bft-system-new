@@ -48,6 +48,52 @@ public class IamRepository {
             .findFirst();
     }
 
+    public Optional<String> findWecomUserIdByUserId(long userId) {
+        List<String> rows = jdbcTemplate.queryForList(
+            """
+            select wecom_user_id from sys_user
+            where id = ? and status = 'ACTIVE' and deleted_flag = 0
+            """,
+            String.class,
+            userId);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        String value = rows.get(0);
+        return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
+    }
+
+    public Optional<String> findUserNoById(long userId) {
+        List<String> rows = jdbcTemplate.queryForList(
+            """
+            select user_no from sys_user
+            where id = ? and status = 'ACTIVE' and deleted_flag = 0
+            """,
+            String.class,
+            userId);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        String value = rows.get(0);
+        return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
+    }
+
+    public List<Long> findActiveUserIdsByRoleCode(String roleCode) {
+        return jdbcTemplate.queryForList(
+            """
+            select u.id
+            from sys_user u
+            join sys_user_role ur on ur.user_id = u.id and ur.grant_status = 'ACTIVE'
+            join sys_role r on r.id = ur.role_id and r.status = 'ACTIVE' and r.deleted_flag = 0
+            where r.role_code = ?
+              and u.status = 'ACTIVE'
+              and u.deleted_flag = 0
+            order by u.id
+            """,
+            Long.class,
+            roleCode);
+    }
+
     public List<RoleRecord> findActiveRolesByUserId(long userId) {
         return jdbcTemplate.query(
             """
@@ -111,6 +157,39 @@ public class IamRepository {
                 approvalId)
             .stream()
             .findFirst();
+    }
+
+    public Optional<ApprovalRecord> findApprovalByWecomApprovalId(String wecomApprovalId) {
+        if (wecomApprovalId == null || wecomApprovalId.isBlank()) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query(
+                """
+                select id, approval_no, approval_type, title, applicant_user_id, approver_user_id,
+                       related_object_type, related_object_id, related_object_no, status,
+                       submit_reason, approval_comment, submitted_at, finished_at
+                from approval_record
+                where wecom_approval_id = ?
+                """,
+                approvalMapper(),
+                wecomApprovalId)
+            .stream()
+            .findFirst();
+    }
+
+    public void setApprovalWecomId(long approvalId, String wecomApprovalId) {
+        if (wecomApprovalId == null || wecomApprovalId.isBlank()) {
+            return;
+        }
+        jdbcTemplate.update(
+            """
+            update approval_record
+            set wecom_approval_id = ?,
+                version = version + 1
+            where id = ?
+            """,
+            wecomApprovalId,
+            approvalId);
     }
 
     public List<ApprovalRecord> findApprovals(String approvalType, String status) {

@@ -22,7 +22,9 @@ import com.wecombft.shared.web.ApiResponse;
     IntegrationModeProperties.class,
     RedisConnectionProperties.class,
     com.wecombft.infrastructure.config.WecomProperties.class,
-    com.wecombft.infrastructure.config.WechatMiniappProperties.class
+    com.wecombft.infrastructure.config.WechatMiniappProperties.class,
+    com.wecombft.infrastructure.config.WecomCallbackProperties.class,
+    com.wecombft.infrastructure.config.WecomApprovalProperties.class
 })
 public class HealthController {
 
