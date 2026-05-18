@@ -10,7 +10,7 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/shared/package.json ./frontend/shared/
 COPY frontend/admin/package.json ./frontend/admin/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --config.dangerouslyAllowAllBuilds=true
 
 # 复制实际源码
 COPY frontend/shared ./frontend/shared
