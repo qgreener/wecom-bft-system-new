@@ -24,6 +24,12 @@ const routes: RouteRecordRaw[] = [
     path: "/",
     component: () => import("@/layouts/BlankLayout.vue"),
     children: [
+      // 空 hash（如 https://finhub.tax/admin/）落到这里，由守卫决定去 dashboard 还是 login
+      {
+        path: "",
+        name: "root",
+        redirect: "/dashboard"
+      },
       {
         path: "login",
         name: "login",
