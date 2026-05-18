@@ -115,7 +115,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - certbot-certs:/etc/letsencrypt
+      # 直接挂主机 /etc/letsencrypt（certbot 已签发的证书在那里）
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot
     depends_on:
       - backend
@@ -127,7 +128,7 @@ services:
     container_name: wecom-bft-certbot
     profiles: ["cert"]
     volumes:
-      - certbot-certs:/etc/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
       - certbot-www:/var/www/certbot
 
 networks:
@@ -138,5 +139,4 @@ volumes:
   mysql-data:
   redis-data:
   backend-storage:
-  certbot-certs:
   certbot-www:
