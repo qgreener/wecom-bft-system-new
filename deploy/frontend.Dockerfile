@@ -1,10 +1,10 @@
 # 构建并打包所有 H5/admin 前端到一个 nginx 静态文件镜像
 # Build context = 仓库根目录
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /workspace
 
-# corepack 启用 pnpm（lock 文件需要 pnpm）
-RUN corepack enable && corepack prepare pnpm@10 --activate
+# corepack 启用 pnpm（根 package.json 的 packageManager 已锁定版本）
+RUN corepack enable
 
 # 复制 pnpm 元数据先装依赖（利用 docker layer cache）
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
