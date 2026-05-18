@@ -9,6 +9,8 @@ public record ApprovalRecord(
     String title,
     long applicantUserId,
     Long approverUserId,
+    String relatedObjectType,
+    Long relatedObjectId,
     String relatedObjectNo,
     String status,
     String submitReason,

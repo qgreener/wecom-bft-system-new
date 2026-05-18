@@ -24,6 +24,11 @@ spring:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
     baseline-on-migrate: false
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${FILE_MAX_UPLOAD_SIZE_MB:20}MB
+      max-request-size: ${FILE_MAX_UPLOAD_SIZE_MB:20}MB
 
 app:
   name: ${APP_NAME:wecom-bft-new-system}

@@ -13,7 +13,8 @@ pnpm-debug.log*
 **/.env.local
 
 # Runtime data
-storage/
+/storage/
+backend/storage/
 logs/
 tmp/
 

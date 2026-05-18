@@ -112,7 +112,9 @@ public class PermissionCatalog {
                 "purchase:order:write",
                 "purchase:approval:approve",
                 "fulfillment:shipment:write",
-                "system:logistics-config:read"
+                "system:logistics-config:read",
+                "mock:scene:read",
+                "mock:scene:trigger"
             ),
             List.of(
                 new MenuPolicy("home.dashboard", "首页", null, 10),

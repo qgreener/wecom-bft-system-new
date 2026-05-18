@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.purchase.PurchaseApplicationService;
 import com.wecombft.application.CreationResult;
-import com.wecombft.interfaces.dto.purchase.ApprovalActionRequest;
 import com.wecombft.interfaces.dto.purchase.PurchaseCreateRequest;
 import com.wecombft.interfaces.dto.purchase.PurchaseInputInvoiceRequest;
 import com.wecombft.interfaces.dto.purchase.PurchaseReceiveRequest;
@@ -107,14 +106,4 @@ public class PurchaseAdminController {
             TraceIds.currentOrCreate()));
     }
 
-    @PostMapping("/api/collab/purchase-approvals/{approval_id}/actions")
-    @RequirePermission("purchase:approval:approve")
-    public ResponseEntity<ApiResponse<PurchaseResponse>> approvalAction(
-        @PathVariable("approval_id") long approvalId,
-        @RequestBody ApprovalActionRequest command
-    ) {
-        return ResponseEntity.ok(ApiResponse.ok(
-            purchaseApplicationService.approvePurchase(AdminPrincipalContext.currentOrNull(), approvalId, command == null ? null : command.toCommand()),
-            TraceIds.currentOrCreate()));
-    }
 }

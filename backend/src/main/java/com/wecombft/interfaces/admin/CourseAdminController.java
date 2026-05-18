@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.course.CourseApplicationService;
-import com.wecombft.interfaces.dto.course.CourseApprovalActionRequest;
-import com.wecombft.interfaces.dto.course.CourseApprovalActionResponse;
 import com.wecombft.interfaces.dto.course.CourseApprovalRequest;
 import com.wecombft.interfaces.dto.course.CourseApprovalResponse;
 import com.wecombft.interfaces.dto.course.CourseDetailResponse;
@@ -97,14 +95,4 @@ public class CourseAdminController {
             .body(ApiResponse.created(courseApplicationService.submitApproval(courseId, command == null ? null : command.toCommand()), TraceIds.currentOrCreate()));
     }
 
-    @PostMapping("/api/collab/course-approvals/{approval_id}/actions")
-    @RequirePermission("course:approval:approve")
-    public ResponseEntity<ApiResponse<CourseApprovalActionResponse>> approvalAction(
-        @PathVariable("approval_id") long approvalId,
-        @RequestBody CourseApprovalActionRequest command
-    ) {
-        return ResponseEntity.ok(ApiResponse.ok(
-            courseApplicationService.approvalAction(approvalId, command == null ? null : command.toCommand()),
-            TraceIds.currentOrCreate()));
-    }
 }

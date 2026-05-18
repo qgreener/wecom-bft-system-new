@@ -42,7 +42,7 @@ import com.wecombft.application.command.finance.AccountingMaterialCloseCommand;
 import com.wecombft.application.command.finance.AccountingMaterialConfirmCommand;
 import com.wecombft.application.command.finance.AccountingMaterialCreateCommand;
 import com.wecombft.application.command.finance.AccountingMaterialUploadCommand;
-import com.wecombft.application.command.finance.CompensationRetryCommand;
+import com.wecombft.application.command.finance.CompensationActionCommand;
 import com.wecombft.application.command.finance.ReconciliationCheckCommand;
 import com.wecombft.application.command.finance.RefundRetryCommand;
 import com.wecombft.application.command.finance.InvoiceApplyCommand;
@@ -1249,38 +1249,102 @@ public class AfterSalesFinanceApplicationService {
     }
 
     @Transactional
-    public CompensationRetryResponse retryCompensation(AdminPrincipal principal, String idempotencyKey, long compensationId, CompensationRetryCommand command) {
+    public CompensationRetryResponse compensationAction(AdminPrincipal principal, String idempotencyKey, long taskId, CompensationActionCommand command) {
         requireAdmin(principal);
         requireIdempotencyKey(idempotencyKey);
-        String type = normalizeChoice(command == null ? null : command.compensationType(), List.of("REFUND", "INVOICE", "RED_REVERSE", "RECONCILIATION"), "补偿类型非法");
-        String action = normalizeText(command.action());
-        if ("REFUND".equals(type) && "MANUAL_REQUIRED".equals(action)) {
-            RefundRow refund = requireRefund(compensationId);
+        String type = normalizeChoice(
+            command == null ? null : command.compensationType(),
+            List.of("REFUND", "INVOICE", "RED_REVERSE", "RECONCILIATION"),
+            "补偿类型非法");
+        String action = normalizeChoice(
+            command == null ? null : command.action(),
+            List.of("RETRY", "CLOSE"),
+            "补偿动作非法");
+        if ("RETRY".equals(action)) {
+            String retryMode = normalizeText(command.retryMode());
+            if ("REFUND".equals(type) && "MANUAL_REQUIRED".equals(retryMode)) {
+                RefundRow refund = requireRefund(taskId);
+                jdbcTemplate.update(
+                    """
+                    update pay_refund
+                    set status = 'MANUAL_REQUIRED',
+                        refund_channel = 'MANUAL',
+                        updated_by = ?,
+                        version = version + 1
+                    where id = ? and status in ('FAILED', 'PROCESSING', 'MANUAL_REQUIRED')
+                    """,
+                    principal.userId(),
+                    taskId);
+                jdbcTemplate.update(
+                    """
+                    update trade_order
+                    set refund_status = 'MANUAL_REQUIRED',
+                        updated_by = ?,
+                        version = version + 1
+                    where id = ? and refund_status <> 'REFUNDED'
+                    """,
+                    principal.userId(),
+                    refund.orderId());
+                auditLogService.writeSuccess(principal, "COMPENSATION", "REFUND_TO_MANUAL", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"status\":\"MANUAL_REQUIRED\"}");
+                return new CompensationRetryResponse(taskId, "REFUND", "MANUAL_REQUIRED", "转人工退款");
+            }
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "暂不支持该重试组合: " + type + "/" + retryMode);
+        }
+        // CLOSE
+        String closedReason = command.closedReason();
+        if (closedReason == null || closedReason.isBlank()) {
+            closedReason = command.failureReason();
+        }
+        if (closedReason == null || closedReason.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "关闭补偿必须填写原因");
+        }
+        if ("REFUND".equals(type)) {
+            RefundRow refund = requireRefund(taskId);
+            if (!List.of("FAILED", "MANUAL_REQUIRED").contains(refund.status())) {
+                throw new ApiException(HttpStatus.CONFLICT, "STATE_CONFLICT", "当前状态不允许关闭补偿: " + refund.status());
+            }
             jdbcTemplate.update(
                 """
                 update pay_refund
-                set status = 'MANUAL_REQUIRED',
-                    refund_channel = 'MANUAL',
+                set failure_reason = ?,
                     updated_by = ?,
                     version = version + 1
-                where id = ? and status in ('FAILED', 'PROCESSING', 'MANUAL_REQUIRED')
+                where id = ?
                 """,
-                principal.userId(),
-                compensationId);
+                closedReason, principal.userId(), taskId);
+            auditLogService.writeSuccess(principal, "COMPENSATION", "COMPENSATION_CLOSE", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"closed_reason\":\"" + sanitizeForJson(closedReason) + "\"}");
+            return new CompensationRetryResponse(taskId, "REFUND", "CLOSED", "补偿已关闭");
+        }
+        if ("INVOICE".equals(type) || "RED_REVERSE".equals(type)) {
             jdbcTemplate.update(
                 """
-                update trade_order
-                set refund_status = 'MANUAL_REQUIRED',
+                update tax_invoice
+                set failure_reason = ?,
                     updated_by = ?,
                     version = version + 1
-                where id = ? and refund_status <> 'REFUNDED'
+                where id = ?
                 """,
-                principal.userId(),
-                refund.orderId());
-            auditLogService.writeSuccess(principal, "COMPENSATION", "REFUND_TO_MANUAL", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"status\":\"MANUAL_REQUIRED\"}");
-            return new CompensationRetryResponse(compensationId, "REFUND", "MANUAL_REQUIRED", "转人工退款");
+                closedReason, principal.userId(), taskId);
+            auditLogService.writeSuccess(principal, "COMPENSATION", "COMPENSATION_CLOSE", "TAX_INVOICE", taskId, null, null, "{\"closed_reason\":\"" + sanitizeForJson(closedReason) + "\"}");
+            return new CompensationRetryResponse(taskId, type, "CLOSED", "补偿已关闭");
         }
-        throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "暂不支持该补偿动作");
+        if ("RECONCILIATION".equals(type)) {
+            jdbcTemplate.update(
+                """
+                update finance_reconciliation_record
+                set difference_reason = ?,
+                    checked_flag = 1,
+                    checked_by = ?,
+                    checked_at = ?,
+                    updated_by = ?,
+                    version = version + 1
+                where id = ?
+                """,
+                closedReason, principal.userId(), LocalDateTime.now(), principal.userId(), taskId);
+            auditLogService.writeSuccess(principal, "COMPENSATION", "COMPENSATION_CLOSE", "FINANCE_RECONCILIATION_RECORD", taskId, null, null, "{\"closed_reason\":\"" + sanitizeForJson(closedReason) + "\"}");
+            return new CompensationRetryResponse(taskId, "RECONCILIATION", "CLOSED", "补偿已关闭");
+        }
+        throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_BLOCKED", "未知补偿类型: " + type);
     }
 
     private void insertRefundItems(long refundId, String refundNo, OrderRow order, long amountCent, long operatorUserId) {

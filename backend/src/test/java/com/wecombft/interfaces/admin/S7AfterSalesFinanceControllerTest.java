@@ -654,12 +654,12 @@ class S7AfterSalesFinanceControllerTest {
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.data.status").value("FAILED"));
 
-        mockMvc.perform(post("/api/collab/compensations/{compensation_id}/retry", refundId)
+        mockMvc.perform(post("/api/collab/compensations/{task_id}/actions", refundId)
                 .header("Authorization", "Bearer " + serviceToken)
                 .header("Idempotency-Key", "s7-compensation-retry")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"compensation_type":"REFUND","action":"MANUAL_REQUIRED","remark":"转人工退款"}
+                    {"compensation_type":"REFUND","action":"RETRY","retry_mode":"MANUAL_REQUIRED","remark":"转人工退款"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.related_object_type").value("REFUND"))
