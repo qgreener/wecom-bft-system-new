@@ -253,7 +253,3 @@ export const routeRegistry: AdminRoute[] = [
   }
 ];
 
-export function findRouteByPath(path: string): AdminRoute {
-  const normalized = path === "/" ? "/dashboard" : path;
-  return routeRegistry.find((route) => normalized.startsWith(route.path)) ?? routeRegistry[0];
-}
