@@ -1,5 +1,6 @@
 const STATUS_LABEL_MAP: Record<string, string> = {
   PENDING: "待支付", PAID: "已支付", CLOSED: "已关闭",
+  APPROVED: "已通过",
   NO_SHIPMENT: "无需发货", PENDING_SHIPMENT: "待发货", SHIPPED: "已发货", SIGNED: "已签收",
   NONE: "无退款", REVIEWING: "审核中", REJECTED: "已拒绝", PROCESSING: "处理中",
   MANUAL_REQUIRED: "待人工处理", FAILED: "失败", REFUNDED: "已退款",
@@ -13,17 +14,21 @@ const STATUS_LABEL_MAP: Record<string, string> = {
   NOT_INVOICED: "未开票", INVOICED: "已开票",
   MATCHED: "已匹配", AMOUNT_DIFF: "金额差异", FEE_DIFF: "手续费差异", UNMATCHED: "未匹配", DUPLICATE: "重复",
   PENDING_SUPPLEMENT: "待补充", UPLOADED: "已上传",
+  CONFIRM: "已确认",
   IN_APP: "站内通知", SENT: "已发送", UNREAD: "未读", READ: "已读",
   PENDING_FOLLOW: "待跟进", CONTACTED: "已联系", CONVERTED: "已转化", ABANDONED: "已放弃",
   PUBLISHED: "已发布", HIDDEN: "已隐藏",
   LIVE: "直播课", RECORDED: "录制课", MATERIAL: "实物",
-  SUCCESS: "成功", CHAPTER: "章节", LESSON: "课节"
+  SUCCESS: "成功", CHAPTER: "章节", LESSON: "课节",
+  WECOM_SIDEBAR: "企微侧边栏", PROMOTION: "推广码落地页", OTHER: "其他",
+  BANK_TRANSFER: "银行转账", WECHAT_TRANSFER: "微信转账", ORIGINAL: "原路退款",
+  IN: "入库", OUT: "出库"
 };
 
 const SUCCESS_CODES = new Set([
   "PAID", "ISSUED", "SIGNED", "ACTIVE", "SENT", "READ", "CONVERTED", "ON_SHELF",
   "COMPLETED", "ENABLED", "PUBLISHED", "SUCCESS", "MATCHED", "UPLOADED",
-  "CONFIRMED", "INVOICED"
+  "CONFIRMED", "INVOICED", "APPROVED", "CONFIRM"
 ]);
 
 const WARNING_CODES = new Set([
@@ -40,7 +45,7 @@ const DANGER_CODES = new Set([
 ]);
 
 const MUTED_CODES = new Set([
-  "NO_SHIPMENT", "NONE", "NOT_APPLIED", "DISABLED", "MERGED"
+  "NO_SHIPMENT", "NONE", "NOT_APPLIED", "DISABLED", "MERGED", "OTHER"
 ]);
 
 export function statusLabel(code: string | null | undefined): string {
@@ -59,18 +64,24 @@ export function statusClass(code: string | null | undefined): string {
 
 const FIELD_LABEL_MAP: Record<string, string> = {
   order_no: "订单编号", shipment_no: "发货单号", purchase_no: "采购单号",
+  refund_no: "退款单号", invoice_no: "发票号", material_no: "材料编号",
   payment_status: "支付状态", fulfillment_status: "履约状态", refund_status: "退款状态", invoice_status: "开票状态",
   payable_amount_cent: "应付金额", paid_amount_cent: "实付金额",
+  apply_amount_cent: "申请金额", tax_amount_cent: "税额",
   logistics_company_name: "物流公司", tracking_no: "运单号",
   shipped_at: "发货时间", signed_at: "签收时间",
-  course_title: "课程", student_name: "学员",
-  apply_amount_cent: "申请金额", approved_amount_cent: "批准金额",
+  course_title: "课程", course_type: "课程类型", student_name: "学员", nickname: "昵称", mobile: "手机号",
+  approved_amount_cent: "批准金额",
   invoice_amount_cent: "发票金额", total_amount_cent: "采购金额",
   purchase_status: "采购状态", input_invoice_status: "进项票状态",
   created_at: "创建时间", updated_at: "更新时间",
   status: "状态", exception_flag: "异常", exception_reason: "异常原因",
   receiver_name: "收货人", receiver_mobile: "收货手机",
-  supplier_name: "供货商", sku_name: "商品名"
+  supplier_name: "供货商", sku_name: "商品名",
+  lead_no: "线索编号", source_channel: "来源渠道", source_code: "来源明细",
+  config_key: "配置键", display_name: "名称", masked_value: "当前值", editable_flag: "可编辑",
+  trace_id: "TraceId", operator_name: "操作人", operation_module: "模块", operation_type: "动作",
+  result: "结果", target_type: "对象类型", target_no: "对象编号"
 };
 
 export function fieldLabel(key: string): string {

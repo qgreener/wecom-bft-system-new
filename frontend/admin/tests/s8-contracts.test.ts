@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildApiUrl, createIdempotencyKey } from "../src/services/http";
+import { buildApiUrl, createIdempotencyKey, request } from "../src/services/http";
 import { routeRegistry } from "../src/router/routes";
 import { formatCent, normalizeRecords } from "../src/utils/format";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  vi.restoreAllMocks();
+});
 
 describe("S8 admin frontend contracts", () => {
   it("builds admin api urls with snake_case query names and skips empty filters", () => {
@@ -27,8 +34,27 @@ describe("S8 admin frontend contracts", () => {
 
   it("normalizes backend page and plain record collections", () => {
     expect(normalizeRecords({ records: [{ id: 1 }] })).toEqual([{ id: 1 }]);
+    expect(normalizeRecords({ config_items: [{ config_key: "LOGISTICS" }] })).toEqual([{ config_key: "LOGISTICS" }]);
     expect(normalizeRecords([{ id: 2 }])).toEqual([{ id: 2 }]);
     expect(normalizeRecords(null)).toEqual([]);
+  });
+
+  it("rejects non-OK business envelopes even when HTTP status is 200", async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({
+      code: "INVALID_ARGUMENT",
+      message: "参数错误",
+      trace_id: "trace-1",
+      data: null
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })) as typeof fetch;
+
+    await expect(request("/api/admin/orders")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+      traceId: "trace-1",
+      message: "参数错误"
+    });
   });
 
   it("registers core PC admin routes from the S8 scope", () => {
@@ -40,11 +66,13 @@ describe("S8 admin frontend contracts", () => {
       "invoices",
       "reconciliation",
       "accounting",
+      "reports",
       "courses",
       "leads",
       "students",
       "inventory",
       "purchases",
+      "logisticsConfig",
       "settings",
       "audit"
     ]));

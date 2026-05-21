@@ -86,10 +86,7 @@ export async function request<T>(
     ? await response.json() as ApiEnvelope<T>
     : null;
 
-  if (!response.ok || !envelope || envelope.code === "OK" || envelope.code === "CREATED") {
-    if (response.ok && envelope && (envelope.code === "OK" || envelope.code === "CREATED")) {
-      return envelope.data;
-    }
+  if (!response.ok || !envelope) {
     throw new ApiClientError(
       response.status,
       envelope?.code ?? `HTTP_${response.status}`,
@@ -98,5 +95,14 @@ export async function request<T>(
     );
   }
 
-  return envelope.data;
+  if (envelope.code === "OK" || envelope.code === "CREATED") {
+    return envelope.data;
+  }
+
+  throw new ApiClientError(
+    response.status,
+    envelope.code,
+    envelope.message || "接口返回业务错误",
+    envelope.trace_id
+  );
 }

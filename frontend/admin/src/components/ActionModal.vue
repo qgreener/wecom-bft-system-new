@@ -30,9 +30,31 @@ function fieldsFor(type: string) {
         <h2>{{ ACTION_LABELS[actionType] ?? actionType }}</h2>
         <button type="button" class="ghost" @click="actionStore.closeModal()">关闭</button>
       </header>
-      <label v-for="field in fieldsFor(actionType)" :key="field.key">
-        {{ field.label }}
-        <input v-model="actionForm[field.key]" type="text" />
+      <label v-for="field in fieldsFor(actionType)" :key="field.key" :class="{ checkbox: field.type === 'checkbox' }">
+        <span>{{ field.label }}<strong v-if="field.required">*</strong></span>
+        <select v-if="field.type === 'select'" v-model="actionForm[field.key]">
+          <option value="">请选择</option>
+          <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+        <textarea
+          v-else-if="field.type === 'textarea' || field.type === 'json'"
+          v-model="actionForm[field.key]"
+          :placeholder="field.placeholder"
+          rows="4"
+        />
+        <input
+          v-else-if="field.type === 'checkbox'"
+          v-model="actionForm[field.key]"
+          type="checkbox"
+        />
+        <input
+          v-else
+          v-model="actionForm[field.key]"
+          :type="field.type ?? 'text'"
+          :placeholder="field.placeholder"
+        />
       </label>
       <p v-if="actionError" class="error-line">{{ actionError }}</p>
       <footer>

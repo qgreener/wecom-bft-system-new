@@ -7,6 +7,7 @@ export type RouteKey =
   | "invoices"
   | "reconciliation"
   | "accounting"
+  | "reports"
   | "courses"
   | "entitlements"
   | "leads"
@@ -15,6 +16,7 @@ export type RouteKey =
   | "purchases"
   | "suppliers"
   | "taxRules"
+  | "logisticsConfig"
   | "settings"
   | "audit";
 
@@ -140,6 +142,15 @@ export const routeRegistry: AdminRoute[] = [
     amountFields: ["min_sale_price_cent"]
   },
   {
+    key: "reports",
+    path: "/reports",
+    title: "数据报表",
+    group: "finance",
+    menuCodes: ["report.business", "report.learning"],
+    permissionCodes: ["report:business:read", "report:learning:read"],
+    idFields: []
+  },
+  {
     key: "leads",
     path: "/leads",
     title: "线索管理",
@@ -242,6 +253,16 @@ export const routeRegistry: AdminRoute[] = [
     idFields: []
   },
   {
+    key: "logisticsConfig",
+    path: "/logistics-config",
+    title: "物流配置",
+    group: "system",
+    menuCodes: ["system.logistics-config"],
+    permissionCodes: ["system:logistics-config:read"],
+    listPath: "/api/admin/system/configs",
+    idFields: ["config_key"]
+  },
+  {
     key: "audit",
     path: "/audit",
     title: "操作日志",
@@ -252,4 +273,3 @@ export const routeRegistry: AdminRoute[] = [
     idFields: ["audit_log_id", "id"]
   }
 ];
-

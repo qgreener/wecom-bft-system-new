@@ -11,7 +11,17 @@ export function useGenericList() {
   const route = useRoute();
   const pageStore = usePageStore();
   const authStore = useAuthStore();
-  const { records, detail, pageLoading, pageError, errorTraceId, filters, selectedId } = storeToRefs(pageStore);
+  const {
+    records,
+    detail,
+    pageLoading,
+    detailLoading,
+    pageError,
+    detailError,
+    errorTraceId,
+    filters,
+    selectedId
+  } = storeToRefs(pageStore);
 
   const routeKey = computed<RouteKey>(() => {
     return (route.meta.routeKey as RouteKey | undefined) ?? "dashboard";
@@ -31,8 +41,13 @@ export function useGenericList() {
     await pageStore.loadPageData(routeKey.value);
   }
 
-  function selectRecord(record: Record<string, unknown>, id: string | null): void {
-    pageStore.selectRecord(routeKey.value, record, id);
+  async function selectRecord(record: Record<string, unknown>, id: string | null): Promise<void> {
+    await pageStore.selectRecord(routeKey.value, record, id);
+  }
+
+  async function clearAndReload(): Promise<void> {
+    pageStore.clearFilters();
+    await reload();
   }
 
   onMounted(() => {
@@ -53,12 +68,15 @@ export function useGenericList() {
     records,
     detail,
     pageLoading,
+    detailLoading,
     pageError,
+    detailError,
     errorTraceId,
     filters,
     selectedId,
     hasPageAccess,
     reload,
+    clearAndReload,
     selectRecord
   };
 }

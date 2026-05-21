@@ -5,7 +5,9 @@ import {
   emptyText,
   formatCent,
   formatDateTime,
+  formatNumber,
   getRecordId,
+  isRecord,
   labelFromSnapshot
 } from "@/utils/format";
 
@@ -35,6 +37,7 @@ function displayValue(record: AnyRecord, column: ColumnDef): string {
   if (column.type === "amount") return formatCent(v as number | null | undefined);
   if (column.type === "datetime") return formatDateTime(v);
   if (column.type === "boolean") return v ? "是" : "否";
+  if (typeof v === "number") return formatNumber(v);
   return emptyText(v);
 }
 
@@ -46,12 +49,24 @@ function onClickRow(record: AnyRecord): void {
   const id = getRecordId(record, props.idFields);
   emit("select", record, id);
 }
+
+function isWarningStock(record: AnyRecord): boolean {
+  const stock = record.available_stock;
+  const safety = record.safety_stock;
+  return typeof stock === "number" && typeof safety === "number" && stock < safety;
+}
+
+function titleFor(record: AnyRecord, column: ColumnDef): string {
+  const value = cellValue(record, column);
+  if (isRecord(value) || Array.isArray(value)) return emptyText(value);
+  return displayValue(record, column);
+}
 </script>
 
 <template>
   <div class="table-panel">
-    <p v-if="loading">加载中...</p>
-    <p v-else-if="records.length === 0">{{ emptyMessage ?? "暂无数据" }}</p>
+    <p v-if="loading" class="loading">加载中...</p>
+    <p v-else-if="records.length === 0" class="empty">{{ emptyMessage ?? "暂无数据" }}</p>
     <table v-else>
       <thead>
         <tr>
@@ -60,8 +75,18 @@ function onClickRow(record: AnyRecord): void {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="record in records" :key="rowKey(record)" @click="onClickRow(record)">
-          <td v-for="col in columns" :key="col.key">
+        <tr
+          v-for="record in records"
+          :key="rowKey(record)"
+          :class="{ 'row-warning': isWarningStock(record) }"
+          @click="onClickRow(record)"
+        >
+          <td
+            v-for="col in columns"
+            :key="col.key"
+            :class="{ 'amount-cell': col.type === 'amount' }"
+            :title="titleFor(record, col)"
+          >
             <span
               v-if="col.type === 'status'"
               class="status-tag"

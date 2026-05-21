@@ -1,6 +1,17 @@
 :root {
-  color: #172033;
-  background: #eef2f6;
+  --bg: #eef2f6;
+  --panel: #ffffff;
+  --ink: #172033;
+  --muted: #66758a;
+  --line: #d9e1eb;
+  --line-strong: #b8c4d4;
+  --brand: #174a7c;
+  --brand-strong: #12375f;
+  --accent: #0f766e;
+  --warning: #b54708;
+  --danger: #b42318;
+  color: var(--ink);
+  background: var(--bg);
   font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -285,9 +296,12 @@ button:disabled {
 .table-panel,
 .detail-panel,
 .state-panel,
-.summary-grid article {
-  border: 1px solid #d9e1eb;
-  background: #ffffff;
+.summary-grid article,
+.chart-panel,
+.workflow-board,
+.list-section {
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: 8px;
 }
 
@@ -313,10 +327,19 @@ button:disabled {
 
 .summary-grid article {
   padding: 14px;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
+.summary-grid article:hover {
+  transform: translateY(-1px);
+  border-color: #9eb4ce;
+  box-shadow: 0 12px 28px rgba(20, 31, 48, 0.08);
+}
+
+.summary-grid p,
 .summary-grid span {
   color: #66758a;
+  margin: 0;
 }
 
 .summary-grid strong {
@@ -367,6 +390,7 @@ td {
   padding: 10px 12px;
   text-align: left;
   vertical-align: middle;
+  max-width: 280px;
 }
 
 th {
@@ -383,6 +407,27 @@ tbody tr:hover {
   background: #f7fbff;
 }
 
+tbody tr.row-warning {
+  background: #fff7ed;
+}
+
+tbody tr.row-warning:hover {
+  background: #ffedd5;
+}
+
+td > span:not(.status-tag) {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+.amount-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .action-cell {
   width: 72px;
   text-align: right;
@@ -392,6 +437,36 @@ tbody tr:hover {
   padding: 14px;
   max-height: calc(100vh - 170px);
   overflow-y: auto;
+}
+
+.detail-title {
+  align-items: flex-start;
+}
+
+.detail-title .hint,
+.detail-title .error-line {
+  margin: 4px 0 0;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.status-strip div {
+  border: 1px solid #e1e8f0;
+  border-radius: 6px;
+  padding: 8px;
+  background: #f8fafc;
+}
+
+.status-strip span {
+  display: block;
+  color: #66758a;
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 .description-list {
@@ -456,6 +531,24 @@ pre {
   border-left: 3px solid #9db2cc;
   background: #f8fafc;
   padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.mini-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e1e8f0;
+  border-radius: 6px;
+}
+
+.mini-table {
+  min-width: 520px;
+}
+
+.mini-table th,
+.mini-table td {
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .status-tag {
@@ -544,6 +637,205 @@ pre {
   box-shadow: 0 28px 80px rgba(9, 22, 40, 0.28);
 }
 
+.modal label span {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.modal label strong {
+  color: var(--danger);
+}
+
+label.checkbox {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e1e8f0;
+  border-radius: 6px;
+  padding: 9px 10px;
+}
+
+label.checkbox input {
+  width: auto;
+}
+
+.dashboard-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-summary article {
+  cursor: pointer;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chart-panel {
+  padding: 16px;
+  min-height: 260px;
+}
+
+.chart-panel header,
+.workflow-board header,
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chart-panel h3,
+.workflow-board h3,
+.section-title h3 {
+  margin: 0;
+}
+
+.chart-panel header span,
+.muted-line {
+  color: var(--muted);
+}
+
+.bars {
+  height: 180px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding-top: 12px;
+}
+
+.bar-col {
+  min-width: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  align-items: end;
+  gap: 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-col i {
+  display: block;
+  width: 100%;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, #0f766e, #38bdf8);
+}
+
+.bars.revenue .bar-col i {
+  background: linear-gradient(180deg, #c2410c, #facc15);
+}
+
+.bar-col small {
+  color: var(--muted);
+}
+
+.bar-col strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.workflow-board,
+.list-section {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.segmented button {
+  min-height: 30px;
+  border: 1px solid #d8e0ea;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  padding: 5px 10px;
+}
+
+.segmented button.active {
+  border-color: #174a7c;
+  background: #e8f1fb;
+  color: #12375f;
+  font-weight: 700;
+}
+
+.todo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.todo-card {
+  border: 1px solid #e1e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfe;
+  cursor: pointer;
+}
+
+.todo-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.todo-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.todo-card strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.todo-card li {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.75fr) minmax(0, 1.1fr) auto;
+  gap: 6px;
+  align-items: center;
+  color: #334155;
+  font-size: 12px;
+}
+
+.todo-card em {
+  font-style: normal;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.todo-card small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+.todo-card .muted-line {
+  display: block;
+}
+
 @media (max-width: 1100px) {
   .admin-shell {
     grid-template-columns: 78px minmax(0, 1fr);
@@ -604,5 +896,14 @@ pre {
 
   .summary-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-grid,
+  .todo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-strip {
+    grid-template-columns: 1fr;
   }
 }

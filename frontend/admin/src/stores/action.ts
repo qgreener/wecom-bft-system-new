@@ -17,12 +17,12 @@ export const useActionStore = defineStore("action", () => {
   const actionRecord = ref<AnyRecord | null>(null);
   const actionLoading = ref(false);
   const actionError = ref("");
-  const actionForm = reactive<Record<string, string>>({});
+  const actionForm = reactive<Record<string, any>>({});
 
-  function defaultForm(type: string): Record<string, string> {
+  function defaultForm(type: string): Record<string, string | boolean | number> {
     const fields = ACTION_FIELD_DEFS[type] ?? [];
-    const form: Record<string, string> = {};
-    for (const f of fields) form[f.key] = "";
+    const form: Record<string, string | boolean | number> = {};
+    for (const f of fields) form[f.key] = f.type === "checkbox" ? false : "";
     return form;
   }
 
@@ -49,6 +49,59 @@ export const useActionStore = defineStore("action", () => {
     return getRecordId(record, [...RECORD_ID_FIELDS]) ?? "";
   }
 
+  function parseJsonField(key: string, value: string): unknown {
+    try {
+      return JSON.parse(value);
+    } catch {
+      throw new Error(`${key} 不是合法 JSON`);
+    }
+  }
+
+  function payloadKey(key: string): string {
+    return key.endsWith("_json") ? key.slice(0, -5) : key;
+  }
+
+  function shouldNumber(key: string): boolean {
+    return (
+      key.endsWith("_cent") ||
+      key.endsWith("_count") ||
+      key.endsWith("_id") ||
+      key === "quantity" ||
+      key === "sort_no" ||
+      key === "safety_stock" ||
+      key === "total_count" ||
+      key === "tax_rate"
+    );
+  }
+
+  function buildPayload(type: string): Record<string, unknown> {
+    const fields = new Map((ACTION_FIELD_DEFS[type] ?? []).map((field) => [field.key, field]));
+    const payload: Record<string, unknown> = {};
+    for (const [key, rawValue] of Object.entries(actionForm)) {
+      const field = fields.get(key);
+      if (typeof rawValue === "string" && rawValue.trim() === "") {
+        continue;
+      }
+
+      if (field?.type === "checkbox") {
+        payload[payloadKey(key)] = Boolean(rawValue);
+        continue;
+      }
+
+      const value = typeof rawValue === "string" ? rawValue.trim() : rawValue;
+      if (key.endsWith("_json") && typeof value === "string") {
+        payload[payloadKey(key)] = parseJsonField(key, value);
+      } else if (key === "file_refs" && typeof value === "string") {
+        payload[key] = value.split(",").map((item) => item.trim()).filter(Boolean);
+      } else if (shouldNumber(key)) {
+        payload[key] = Number(value) || 0;
+      } else {
+        payload[key] = value;
+      }
+    }
+    return payload;
+  }
+
   async function submit(): Promise<void> {
     const type = actionType.value as ActionType;
     const binding = ACTION_BINDINGS[type];
@@ -59,12 +112,8 @@ export const useActionStore = defineStore("action", () => {
     actionLoading.value = true;
     actionError.value = "";
     try {
-      const payload: Record<string, unknown> = { ...actionForm };
-      for (const key of Object.keys(payload)) {
-        if (key.endsWith("_cent") || key === "total_count" || key === "quantity") {
-          payload[key] = Number(payload[key]) || 0;
-        }
-      }
+      const payload = buildPayload(type);
+      Object.assign(payload, binding.staticPayload ?? {});
       if (binding.action) payload.action = binding.action;
       const scope = binding.action ? `${type}:${binding.action}` : String(type);
       await request(binding.urlFor(getActionId()), {

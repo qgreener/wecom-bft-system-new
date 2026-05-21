@@ -56,9 +56,11 @@ export const COLUMN_DEFS: Partial<Record<RouteKey, ColumnDef[]>> = {
   accounting: [
     { key: "material_no", label: "材料编号" },
     { key: "title", label: "标题" },
+    { key: "related_month", label: "月份" },
     { key: "status", label: "状态", type: "status" },
     { key: "created_at", label: "创建时间", type: "datetime" }
   ],
+  reports: [],
   courses: [
     { key: "course_no", label: "课程编号" },
     { key: "course_title", label: "课程名称" },
@@ -72,6 +74,7 @@ export const COLUMN_DEFS: Partial<Record<RouteKey, ColumnDef[]>> = {
     { key: "name", label: "姓名" },
     { key: "mobile", label: "手机号" },
     { key: "source_channel", label: "来源" },
+    { key: "source_code", label: "来源明细" },
     { key: "status", label: "状态", type: "status" },
     { key: "latest_follow_at", label: "最近跟进", type: "datetime" }
   ],
@@ -133,8 +136,17 @@ export const COLUMN_DEFS: Partial<Record<RouteKey, ColumnDef[]>> = {
   ],
   settings: [
     { key: "config_key", label: "配置键" },
-    { key: "config_value", label: "配置值" },
-    { key: "masked", label: "脱敏", type: "boolean" }
+    { key: "display_name", label: "名称" },
+    { key: "masked_value", label: "当前值" },
+    { key: "editable_flag", label: "可编辑", type: "boolean" },
+    { key: "updated_at", label: "更新时间", type: "datetime" }
+  ],
+  logisticsConfig: [
+    { key: "config_key", label: "配置键" },
+    { key: "display_name", label: "名称" },
+    { key: "masked_value", label: "当前值" },
+    { key: "editable_flag", label: "可编辑", type: "boolean" },
+    { key: "updated_at", label: "更新时间", type: "datetime" }
   ],
   audit: [
     { key: "created_at", label: "时间", type: "datetime" },
