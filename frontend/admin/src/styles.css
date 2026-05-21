@@ -68,8 +68,7 @@ button {
 .brand-block p,
 .breadcrumb,
 .hint,
-.menu-group p,
-.page-head p,
+.page-toolbar p,
 .notice,
 .userbox small {
   color: #66758a;
@@ -77,8 +76,6 @@ button {
 }
 
 .brand-block h1,
-.page-head h2,
-.topbar h1,
 .detail-title h3,
 .modal h2 {
   margin: 0;
@@ -306,7 +303,7 @@ button:disabled {
 }
 
 .topbar,
-.page-head,
+.page-toolbar,
 .modal header,
 .modal footer,
 .detail-title {
@@ -322,24 +319,28 @@ button:disabled {
   margin-bottom: 14px;
 }
 
-.topbar h1 {
-  font-size: 24px;
-}
-
 .breadcrumb {
   font-size: 12px;
 }
 
 .userbox {
-  display: grid;
-  grid-template-columns: auto auto;
+  display: flex;
   align-items: center;
-  gap: 2px 12px;
-  text-align: right;
+  gap: 12px;
+  text-align: left;
 }
 
-.userbox .ghost {
-  grid-row: span 2;
+.user-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.user-meta .roles {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .notice {
@@ -357,7 +358,7 @@ button:disabled {
   color: #34465d;
 }
 
-.page-head,
+.page-toolbar,
 .filter-row,
 .table-panel,
 .detail-panel,
@@ -371,8 +372,9 @@ button:disabled {
   border-radius: 6px;
 }
 
-.page-head {
-  padding: 16px;
+.page-toolbar {
+  min-height: 42px;
+  padding: 8px 12px;
   margin-bottom: 12px;
 }
 
@@ -993,7 +995,7 @@ label.checkbox input {
   }
 
   .topbar,
-  .page-head {
+  .page-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }

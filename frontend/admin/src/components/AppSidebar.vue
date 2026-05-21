@@ -55,10 +55,6 @@ function isGroupOpen(group: string): boolean {
 }
 
 function toggleGroup(group: RouteGroup): void {
-  if (group.group === "home" && group.routes.length === 1) {
-    navigate(group.routes[0].path);
-    return;
-  }
   const next = new Set(openGroups.value);
   if (next.has(group.group)) {
     next.delete(group.group);

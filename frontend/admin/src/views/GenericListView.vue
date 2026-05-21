@@ -135,11 +135,8 @@ const statusOptions = computed(() => {
 
 <template>
   <template v-if="hasPageAccess">
-    <section class="page-head">
-      <div>
-        <h2>{{ adminRoute.title }}</h2>
-        <p>接口：{{ adminRoute.listPath ?? "未实现" }}</p>
-      </div>
+    <section class="page-toolbar">
+      <p>数据源：{{ adminRoute.listPath ?? "后端接口未实现" }}</p>
       <div v-if="pageActions.length" class="head-actions">
         <button
           v-for="action in pageActions"

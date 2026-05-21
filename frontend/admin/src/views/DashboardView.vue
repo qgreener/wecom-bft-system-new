@@ -146,11 +146,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page-head">
-    <div>
-      <h2>首页</h2>
-      <p>关键待办来自 `/api/admin/dashboard/todos`，最近订单来自订单列表。</p>
-    </div>
+  <section class="page-toolbar">
+    <p>关键待办来自 `/api/admin/dashboard/todos`，最近订单来自订单列表。</p>
     <button class="secondary" :disabled="loading" @click="store.load()">{{ loading ? "刷新中..." : "刷新" }}</button>
   </section>
 

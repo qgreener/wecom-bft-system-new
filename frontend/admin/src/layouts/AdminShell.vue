@@ -46,10 +46,11 @@ function logout(): void {
           <span v-if="selectedId">/</span>
           <span v-if="selectedId">{{ selectedId }}</span>
         </div>
-        <h1>{{ pageTitle }}</h1>
         <div class="userbox">
-          <span>{{ currentUser?.display_name ?? "-" }}</span>
-          <span class="roles">{{ roles }}</span>
+          <div class="user-meta">
+            <span>{{ currentUser?.display_name ?? "-" }}</span>
+            <span class="roles">{{ roles }}</span>
+          </div>
           <button class="ghost" @click="logout()">退出</button>
         </div>
       </header>
