@@ -50,6 +50,10 @@ export function useGenericList() {
     await reload();
   }
 
+  function closeDetail(): void {
+    pageStore.clearDetail();
+  }
+
   onMounted(() => {
     pageStore.reset();
     reload();
@@ -77,6 +81,7 @@ export function useGenericList() {
     hasPageAccess,
     reload,
     clearAndReload,
+    closeDetail,
     selectRecord
   };
 }

@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "action", action: RouteAction, record: AnyRecord): void;
+  (e: "close"): void;
 }>();
 
 const primitiveEntries = computed(() => {
@@ -127,80 +128,91 @@ function actionClass(actionType: string): string {
 function onAction(action: RouteAction): void {
   if (props.detail) emit("action", action, props.detail);
 }
+
+function close(): void {
+  emit("close");
+}
 </script>
 
 <template>
-  <aside v-if="detail" class="detail-panel">
-    <div class="detail-title">
-      <div>
-        <h3>详情</h3>
-        <p v-if="loading" class="hint">详情加载中...</p>
-        <p v-if="error" class="error-line">{{ error }}</p>
-      </div>
-      <div class="detail-actions">
-        <button
-          v-for="act in visibleActions"
-          :key="act.type"
-          type="button"
-          :class="actionClass(act.type)"
-          @click="onAction(act)"
-        >{{ act.label }}</button>
-      </div>
-    </div>
+  <Teleport to="body">
+    <section v-if="detail" class="detail-drawer-layer" @click.self="close">
+      <aside class="detail-panel detail-drawer" role="dialog" aria-modal="true" aria-label="业务详情">
+        <div class="detail-title">
+          <div>
+            <h3>详情</h3>
+            <p v-if="loading" class="hint">详情加载中...</p>
+            <p v-if="error" class="error-line">{{ error }}</p>
+          </div>
+          <div class="detail-title-actions">
+            <div class="detail-actions">
+              <button
+                v-for="act in visibleActions"
+                :key="act.type"
+                type="button"
+                :class="actionClass(act.type)"
+                @click="onAction(act)"
+              >{{ act.label }}</button>
+            </div>
+            <button class="icon-close" type="button" aria-label="关闭详情" @click="close">×</button>
+          </div>
+        </div>
 
-    <section v-if="statusEntries.length" class="status-strip">
-      <div v-for="[key, value] in statusEntries" :key="key">
-        <span>{{ fieldLabel(key) }}</span>
-        <strong class="status-tag" :class="statusClass(value as string)">
-          {{ statusLabel(value as string) }}
-        </strong>
-      </div>
+        <section v-if="statusEntries.length" class="status-strip">
+          <div v-for="[key, value] in statusEntries" :key="key">
+            <span>{{ fieldLabel(key) }}</span>
+            <strong class="status-tag" :class="statusClass(value as string)">
+              {{ statusLabel(value as string) }}
+            </strong>
+          </div>
+        </section>
+
+        <dl class="description-list">
+          <template v-for="[key, val] in primitiveEntries" :key="String(key)">
+              <dt>{{ fieldLabel(String(key)) }}</dt>
+              <dd>
+                <span
+                  v-if="route.statusFields?.includes(String(key))"
+                  class="status-tag"
+                  :class="statusClass(val as string)"
+                >{{ statusLabel(val as string) }}</span>
+                <span v-else>{{ displayPrimitive(String(key), val) }}</span>
+              </dd>
+          </template>
+        </dl>
+
+        <section v-for="[key, val] in arrayEntries" :key="key" class="detail-block">
+          <h4>{{ arrayTitle(key) }}</h4>
+          <ul v-if="key === 'document_links'" class="timeline">
+            <li v-for="item in arrayRows(val)" :key="String(item.document_no ?? item.entity_no ?? item.id ?? JSON.stringify(item))">
+              <strong>{{ emptyText(item.document_type ?? item.type) }}</strong>
+              <span>{{ emptyText(item.document_no ?? item.entity_no ?? item.order_no) }}</span>
+              <span v-if="item.status" class="status-tag" :class="statusClass(item.status as string)">
+                {{ statusLabel(item.status as string) }}
+              </span>
+            </li>
+          </ul>
+          <div v-else class="mini-table-wrap">
+            <table class="mini-table">
+              <thead>
+                <tr>
+                  <th v-for="col in arrayColumns(arrayRows(val))" :key="col">{{ fieldLabel(col) }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rowIndex) in arrayRows(val)" :key="rowIndex">
+                  <td v-for="col in arrayColumns(arrayRows(val))" :key="col">
+                    <span v-if="String(col).includes('status')" class="status-tag" :class="statusClass(row[col] as string)">
+                      {{ statusLabel(row[col] as string) }}
+                    </span>
+                    <span v-else>{{ displayPrimitive(col, row[col]) }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </aside>
     </section>
-
-    <dl class="description-list">
-      <template v-for="[key, val] in primitiveEntries" :key="String(key)">
-          <dt>{{ fieldLabel(String(key)) }}</dt>
-          <dd>
-            <span
-              v-if="route.statusFields?.includes(String(key))"
-              class="status-tag"
-              :class="statusClass(val as string)"
-            >{{ statusLabel(val as string) }}</span>
-            <span v-else>{{ displayPrimitive(String(key), val) }}</span>
-          </dd>
-      </template>
-    </dl>
-
-    <section v-for="[key, val] in arrayEntries" :key="key" class="detail-block">
-      <h4>{{ arrayTitle(key) }}</h4>
-      <ul v-if="key === 'document_links'" class="timeline">
-        <li v-for="item in arrayRows(val)" :key="String(item.document_no ?? item.entity_no ?? item.id ?? JSON.stringify(item))">
-          <strong>{{ emptyText(item.document_type ?? item.type) }}</strong>
-          <span>{{ emptyText(item.document_no ?? item.entity_no ?? item.order_no) }}</span>
-          <span v-if="item.status" class="status-tag" :class="statusClass(item.status as string)">
-            {{ statusLabel(item.status as string) }}
-          </span>
-        </li>
-      </ul>
-      <div v-else class="mini-table-wrap">
-        <table class="mini-table">
-          <thead>
-            <tr>
-              <th v-for="col in arrayColumns(arrayRows(val))" :key="col">{{ fieldLabel(col) }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, rowIndex) in arrayRows(val)" :key="rowIndex">
-              <td v-for="col in arrayColumns(arrayRows(val))" :key="col">
-                <span v-if="String(col).includes('status')" class="status-tag" :class="statusClass(row[col] as string)">
-                  {{ statusLabel(row[col] as string) }}
-                </span>
-                <span v-else>{{ displayPrimitive(col, row[col]) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </aside>
+  </Teleport>
 </template>

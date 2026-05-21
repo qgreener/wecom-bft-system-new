@@ -24,6 +24,7 @@ const {
   hasPageAccess,
   reload,
   clearAndReload,
+  closeDetail,
   selectRecord
 } = useGenericList();
 
@@ -251,7 +252,7 @@ const statusOptions = computed(() => {
       <p v-if="errorTraceId">TraceId: {{ errorTraceId }}</p>
     </section>
 
-    <div class="content-split">
+    <div class="list-shell">
       <DataTable
         :columns="columns"
         :records="records"
@@ -265,6 +266,7 @@ const statusOptions = computed(() => {
         :loading="detailLoading"
         :error="detailError"
         @action="onAction"
+        @close="closeDetail"
       />
     </div>
   </template>

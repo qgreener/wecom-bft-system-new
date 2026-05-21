@@ -67,6 +67,12 @@ export const usePageStore = defineStore("page", () => {
     filters.config_group = "PURCHASE";
   }
 
+  function clearDetail(): void {
+    detail.value = null;
+    selectedId.value = null;
+    detailError.value = "";
+  }
+
   function queryForRoute(route: AdminRoute): Record<string, string> {
     const q: Record<string, string> = { page_no: "1", page_size: "20" };
     if (filters.keyword) q.keyword = filters.keyword;
@@ -170,6 +176,7 @@ export const usePageStore = defineStore("page", () => {
     reset,
     setFilter,
     clearFilters,
+    clearDetail,
     loadPageData,
     loadDetail,
     selectRecord
