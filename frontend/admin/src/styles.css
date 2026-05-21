@@ -320,7 +320,16 @@ button:disabled {
 }
 
 .breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
+}
+
+.breadcrumb .separator {
+  color: #a0acb8;
 }
 
 .userbox {
