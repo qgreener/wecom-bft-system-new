@@ -16,7 +16,6 @@ const activeRole = ref("SUPER_ADMIN");
 const orderColumns = computed(() => columnsForRoute("orders"));
 
 const dashboardCards = computed(() => {
-  const f = summary.value ?? {};
   const t = todos.value ?? {};
   return [
     { label: "今日新增线索", value: "-", path: "/leads" },
@@ -24,9 +23,7 @@ const dashboardCards = computed(() => {
     { label: "待处理退款", value: formatNumber(t.pending_refund_review_count), path: "/refunds" },
     { label: "待发货订单", value: formatNumber(t.pending_shipment_count), path: "/shipments" },
     { label: "待开票申请", value: formatNumber(t.pending_invoice_issue_count), path: "/invoices" },
-    { label: "库存预警数", value: "-", path: "/inventory" },
-    { label: "本月收入", value: formatCent(f.income_amount_cent as number | null | undefined), path: "/accounting" },
-    { label: "对账差异", value: formatNumber(t.pending_reconciliation_diff_count ?? f.reconciliation_diff_count), path: "/reconciliation" }
+    { label: "库存预警数", value: "-", path: "/inventory" }
   ];
 });
 
@@ -146,8 +143,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page-toolbar">
-    <p>关键待办来自 `/api/admin/dashboard/todos`，最近订单来自订单列表。</p>
+  <section class="business-command-bar">
+    <div class="business-context">
+      <span>今日待办</span>
+      <small>按角色流程处理</small>
+    </div>
     <button class="secondary" :disabled="loading" @click="store.load()">{{ loading ? "刷新中..." : "刷新" }}</button>
   </section>
 
@@ -237,6 +237,7 @@ onMounted(() => {
       :id-fields="['order_id', 'id']"
       :loading="loading"
       empty-message="暂无订单数据"
+      @select="navigate('/orders')"
     />
   </section>
 </template>

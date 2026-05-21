@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { type ColumnDef } from "@/config/columns";
+import type { RouteAction } from "@/config/actions";
 import { statusClass, statusLabel } from "@/config/status";
 import {
   emptyText,
@@ -19,10 +20,12 @@ const props = defineProps<{
   idFields: string[];
   loading?: boolean;
   emptyMessage?: string;
+  rowActions?: (record: AnyRecord) => RouteAction[];
 }>();
 
 const emit = defineEmits<{
   (e: "select", record: AnyRecord, id: string | null): void;
+  (e: "rowAction", action: RouteAction, record: AnyRecord): void;
 }>();
 
 function cellValue(record: AnyRecord, column: ColumnDef): unknown {
@@ -48,6 +51,14 @@ function rowKey(record: AnyRecord): string {
 function onClickRow(record: AnyRecord): void {
   const id = getRecordId(record, props.idFields);
   emit("select", record, id);
+}
+
+function rowActionItems(record: AnyRecord): RouteAction[] {
+  return props.rowActions ? props.rowActions(record).slice(0, 2) : [];
+}
+
+function onRowAction(action: RouteAction, record: AnyRecord): void {
+  emit("rowAction", action, record);
 }
 
 function isWarningStock(record: AnyRecord): boolean {
@@ -94,7 +105,18 @@ function titleFor(record: AnyRecord, column: ColumnDef): string {
             >{{ statusLabel(cellValue(record, col) as string) }}</span>
             <span v-else>{{ displayValue(record, col) }}</span>
           </td>
-          <td class="action-cell"><button class="link" type="button">查看</button></td>
+          <td class="action-cell">
+            <div class="row-actions">
+              <button class="link" type="button" @click.stop="onClickRow(record)">查看</button>
+              <button
+                v-for="action in rowActionItems(record)"
+                :key="action.type"
+                class="link"
+                type="button"
+                @click.stop="onRowAction(action, record)"
+              >{{ action.label }}</button>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>

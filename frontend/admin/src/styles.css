@@ -502,8 +502,16 @@ td > span:not(.status-tag) {
 }
 
 .action-cell {
-  width: 72px;
+  width: 150px;
   text-align: right;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  white-space: nowrap;
 }
 
 .detail-panel {
@@ -519,6 +527,260 @@ td > span:not(.status-tag) {
   display: flex;
   justify-content: flex-end;
   background: rgba(15, 23, 42, 0.26);
+}
+
+.business-workbench {
+  display: grid;
+  gap: 12px;
+}
+
+.business-command-bar {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.business-context {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.business-context span {
+  font-weight: 700;
+  color: #172033;
+}
+
+.business-context small {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.status-overview article {
+  border: 1px solid var(--line);
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.status-overview article > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.status-overview article > div,
+.overview-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.overview-status b {
+  font-variant-numeric: tabular-nums;
+  color: #172033;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(128px, 1fr));
+  gap: 10px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.filter-panel label {
+  margin: 0;
+  gap: 5px;
+  min-width: 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.filter-panel label.wide {
+  grid-column: span 2;
+}
+
+.filter-panel input,
+.filter-panel select {
+  height: 34px;
+  padding: 6px 9px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.business-drawer {
+  width: min(760px, calc(100vw - 32px));
+  height: 100vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-left: 1px solid var(--line);
+  box-shadow: -18px 0 44px rgba(15, 23, 42, 0.18);
+  animation: drawer-in 160ms ease-out;
+}
+
+.business-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #e5ecea;
+  background: #ffffff;
+}
+
+.business-drawer-head h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.drawer-kicker {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drawer-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 18px 4px;
+}
+
+.drawer-status-grid article {
+  border: 1px solid #e1e8f0;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.drawer-status-grid span:first-child {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drawer-section,
+.document-chain {
+  margin: 12px 18px 0;
+  border: 1px solid #e1e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.drawer-section h4,
+.document-chain h4 {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e7edf4;
+  background: #f7f9fa;
+  color: #334155;
+  font-size: 13px;
+}
+
+.drawer-desc {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  margin: 0;
+}
+
+.drawer-desc dt,
+.drawer-desc dd {
+  margin: 0;
+  padding: 9px 11px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.drawer-desc dt {
+  color: #66758a;
+  background: #fbfcfd;
+  font-weight: 700;
+}
+
+.drawer-desc dd {
+  overflow-wrap: anywhere;
+}
+
+.drawer-desc dt:nth-last-child(2),
+.drawer-desc dd:last-child {
+  border-bottom: 0;
+}
+
+.document-chain header {
+  display: block;
+}
+
+.document-chain ol {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.document-chain li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.document-chain li:last-child {
+  border-bottom: 0;
+}
+
+.chain-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #1f4e5f;
+  box-shadow: 0 0 0 4px #e2eef0;
+}
+
+.document-chain p,
+.document-chain small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.document-chain strong {
+  display: block;
+  color: #172033;
+}
+
+.empty.slim {
+  padding: 14px 12px;
+  margin: 0;
+}
+
+.muted-section {
+  margin-bottom: 18px;
 }
 
 .detail-drawer {
@@ -791,7 +1053,7 @@ label.checkbox input {
 }
 
 .dashboard-summary {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .dashboard-summary article {
@@ -970,6 +1232,19 @@ label.checkbox input {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
+  .filter-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .status-overview,
+  .drawer-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .detail-panel {
     max-height: none;
   }
@@ -1004,9 +1279,41 @@ label.checkbox input {
   }
 
   .topbar,
-  .page-toolbar {
+  .page-toolbar,
+  .business-command-bar,
+  .business-drawer-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .filter-panel,
+  .filter-panel label.wide,
+  .status-overview,
+  .drawer-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .business-drawer {
+    width: 100vw;
+  }
+
+  .drawer-desc {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-desc dt {
+    border-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  .document-chain li {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .document-chain li small,
+  .document-chain li .status-tag {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .summary-grid {

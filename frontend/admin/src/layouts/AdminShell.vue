@@ -3,13 +3,16 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
+import { usePageStore } from "@/stores/page";
 import AppSidebar from "@/components/AppSidebar.vue";
 import { groupLabels, routeRegistry, type AdminRoute, type RouteKey } from "@/router/routes";
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const pageStore = usePageStore();
 const { currentUser } = storeToRefs(auth);
+const { selectedId: activeDetailId } = storeToRefs(pageStore);
 
 const currentAdminRoute = computed(() => {
   const routeKey = route.meta.routeKey as RouteKey | undefined;
@@ -25,7 +28,7 @@ const selectedId = computed<string | null>(() => {
   const id = route.params.id;
   if (typeof id === "string") return id;
   if (Array.isArray(id) && id.length > 0) return id[0];
-  return null;
+  return activeDetailId.value;
 });
 const breadcrumbItems = computed<string[]>(() => {
   const items = ["首页"];

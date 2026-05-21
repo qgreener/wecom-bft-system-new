@@ -1,8 +1,35 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { routeRegistry } from "@/router/routes";
+import { routeRegistry, type RouteKey } from "@/router/routes";
 
 const PUBLIC_PATHS = new Set<string>(["/login", "/role-application", "/oauth-success"]);
+type AdminRouteComponent = NonNullable<RouteRecordRaw["component"]>;
+
+const componentForRoute = (key: RouteKey): AdminRouteComponent => {
+  const components: Record<RouteKey, AdminRouteComponent> = {
+    dashboard: () => import("@/views/DashboardView.vue"),
+    orders: () => import("@/views/trade/OrdersView.vue"),
+    payments: () => import("@/views/finance/PaymentsView.vue"),
+    refunds: () => import("@/views/trade/RefundsView.vue"),
+    shipments: () => import("@/views/trade/ShipmentsView.vue"),
+    invoices: () => import("@/views/trade/InvoicesView.vue"),
+    reconciliation: () => import("@/views/finance/ReconciliationView.vue"),
+    accounting: () => import("@/views/finance/AccountingView.vue"),
+    reports: () => import("@/views/finance/ReportsView.vue"),
+    courses: () => import("@/views/course/CoursesView.vue"),
+    entitlements: () => import("@/views/course/EntitlementsView.vue"),
+    leads: () => import("@/views/crm/LeadsView.vue"),
+    students: () => import("@/views/crm/StudentsView.vue"),
+    inventory: () => import("@/views/supply/InventoryView.vue"),
+    purchases: () => import("@/views/supply/PurchasesView.vue"),
+    suppliers: () => import("@/views/supply/SuppliersView.vue"),
+    taxRules: () => import("@/views/finance/TaxRulesView.vue"),
+    logisticsConfig: () => import("@/views/system/LogisticsConfigView.vue"),
+    settings: () => import("@/views/system/SettingsView.vue"),
+    audit: () => import("@/views/system/AuditView.vue")
+  };
+  return components[key];
+};
 
 const businessRoutes: RouteRecordRaw[] = routeRegistry.map((route) => ({
   path: route.path,
@@ -13,10 +40,7 @@ const businessRoutes: RouteRecordRaw[] = routeRegistry.map((route) => ({
     group: route.group,
     requiresAuth: true
   },
-  component:
-    route.key === "dashboard"
-      ? () => import("@/views/DashboardView.vue")
-      : () => import("@/views/GenericListView.vue")
+  component: componentForRoute(route.key)
 }));
 
 const routes: RouteRecordRaw[] = [
