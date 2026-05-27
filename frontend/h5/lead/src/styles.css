@@ -1,7 +1,9 @@
 :root {
-  color: #202124;
-  background: #eef2ff;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  color: #1f2933;
+  background: #f4f6f2;
+  font-family: "Avenir Next", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 * {
@@ -15,50 +17,213 @@ body {
 .lead-shell {
   min-height: 100vh;
   display: grid;
-  place-items: center;
-  padding: 20px;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg, rgba(21, 94, 117, 0.08), transparent 32%),
+    repeating-linear-gradient(90deg, rgba(31, 41, 51, 0.05) 0 1px, transparent 1px 36px),
+    #f4f6f2;
 }
 
-section {
-  width: min(420px, 100%);
-  background: #ffffff;
-  border: 1px solid #c7d2fe;
+.lead-hero,
+.lead-card,
+.flow-strip {
+  width: min(520px, 100%);
+  margin: 0 auto;
+}
+
+.lead-hero {
+  min-height: 190px;
+  display: grid;
+  align-content: space-between;
   padding: 24px;
-}
-
-.tag {
-  color: #4338ca;
-  font-size: 12px;
-  text-transform: uppercase;
+  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(20, 83, 45, 0.88)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(45deg, rgba(16, 185, 129, 0.18) 0 8px, transparent 8px 24px);
+  border-radius: 8px;
+  box-shadow: 0 18px 38px rgba(28, 49, 43, 0.2);
 }
 
 h1 {
-  margin: 8px 0 22px;
-  font-size: 26px;
+  margin: 8px 0 10px;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: 0;
 }
 
-.rows {
-  display: grid;
-  gap: 10px;
+.eyebrow,
+.hero-text {
+  margin: 0;
 }
 
-.rows div {
+.eyebrow {
+  font-size: 12px;
+  color: #a7f3d0;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.hero-text {
+  max-width: 360px;
+  color: #d8f3e7;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-meta span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f0fdf4;
+  font-size: 12px;
+}
+
+.lead-card {
+  border: 1px solid #d9e1d8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.lead-card header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.lead-card h2 {
+  margin: 2px 0 0;
+  font-size: 20px;
+}
+
+.step-index,
+.lead-card header strong,
+.result-panel > span {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lead-form {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
   gap: 12px;
-  border: 1px solid #e0e7ff;
-  padding: 12px;
 }
 
-span {
-  color: #6366f1;
+label {
+  display: grid;
+  gap: 6px;
+  color: #41515a;
+  font-weight: 700;
 }
 
-strong {
+label span {
+  font-size: 12px;
+}
+
+input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #cbd6d2;
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: #172033;
+  background: #fbfcfb;
+  font: inherit;
+  outline: none;
+}
+
+input:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  background: #0f766e;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+}
+
+button:disabled {
+  opacity: 0.58;
+}
+
+.message {
+  margin: 12px 0 0;
+}
+
+.error {
+  color: #b42318;
+}
+
+.result-panel {
+  margin-top: 14px;
+  border: 1px solid #b7e5d1;
+  border-radius: 8px;
+  background: #f0fdf4;
+  padding: 14px;
+}
+
+.result-panel strong {
+  display: block;
+  margin: 4px 0 10px;
+  color: #17352f;
+  font-size: 22px;
   overflow-wrap: anywhere;
 }
 
-.boundary {
-  color: #4b5563;
-  line-height: 1.7;
+dl {
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+
+dl div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+}
+
+dt {
+  color: #60706b;
+}
+
+dd {
+  margin: 0;
+  color: #17352f;
+  overflow-wrap: anywhere;
+}
+
+.flow-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.flow-strip span {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9e1d8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
 }

@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/index/index",
     "pages/courses/list",
     "pages/learning/index",
     "pages/mine/index",
@@ -19,8 +20,7 @@
     "pages/address/edit",
     "pages/logistics/detail",
     "pages/notifications/list",
-    "pages/notifications/detail",
-    "pages/index/index"
+    "pages/notifications/detail"
   ],
   "window": {
     "navigationBarTitleText": "学员端",

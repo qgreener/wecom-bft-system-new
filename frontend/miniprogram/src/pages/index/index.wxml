@@ -1,1 +1,26 @@
-<view class="page loading">正在进入课程页</view>
+<view class="page with-bottom-bar">
+  <view class="card">
+    <view class="title">财务协作学员端</view>
+    <view class="subtle section">课程、下单、支付、学习权益、退款与发票统一从订单追溯。</view>
+    <view class="status-row">
+      <text class="status-tag info">课程</text>
+      <text class="status-tag info">订单</text>
+      <text class="status-tag info">支付</text>
+      <text class="status-tag info">售后</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="line between" bindtap="goCourses"><text>课程选购</text><text class="muted">进入</text></view>
+    <view class="line between" bindtap="goLearning"><text>学习权益</text><text class="muted">进入</text></view>
+    <view class="line between" bindtap="goOrders"><text>我的订单</text><text class="muted">进入</text></view>
+    <view class="line between" bindtap="goRefund"><text>退款申请</text><text class="muted">进入</text></view>
+    <view class="line between" bindtap="goInvoice"><text>发票申请</text><text class="muted">进入</text></view>
+    <view class="line between" bindtap="goMine"><text>账户与地址</text><text class="muted">进入</text></view>
+  </view>
+
+  <view class="card gap">
+    <view class="h2 section">验收主线</view>
+    <view class="subtle">留资 -> 课程 -> 订单 -> 支付 -> 权益 -> 退款 / 开票。</view>
+  </view>
+</view>

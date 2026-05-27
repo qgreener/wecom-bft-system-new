@@ -143,12 +143,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="business-command-bar">
-    <div class="business-context">
-      <span>今日待办</span>
-      <small>按角色流程处理</small>
+  <section class="dashboard-hero">
+    <div class="hero-copy">
+      <p class="eyebrow">验收主线</p>
+      <h2>一条主线、三个入口、四类保障</h2>
+      <p>以订单为核心，将线索、学员、支付、履约、退款、发票、对账和代账串成可追溯的财务协作链。</p>
     </div>
-    <button class="secondary" :disabled="loading" @click="store.load()">{{ loading ? "刷新中..." : "刷新" }}</button>
+    <div class="hero-actions">
+      <button class="secondary" :disabled="loading" @click="store.load()">{{ loading ? "刷新中..." : "刷新" }}</button>
+      <button class="primary" @click="navigate('/reports')">看财税摘要</button>
+    </div>
   </section>
 
   <section class="summary-grid dashboard-summary">
@@ -158,9 +162,30 @@ onMounted(() => {
     </article>
   </section>
 
-  <section v-if="error" class="state-panel warning">
-    <h2>加载失败</h2>
-    <p>{{ error }}</p>
+  <section class="workflow-board">
+    <header>
+      <h3>验收路径</h3>
+      <div class="segmented">
+        <button v-for="role in roleTabs" :key="role.key" type="button" :class="{ active: activeRole === role.key }" @click="activeRole = role.key">{{ role.label }}</button>
+      </div>
+    </header>
+    <div class="todo-grid">
+      <article v-for="group in activeTodoGroups" :key="group.label" class="todo-card" @click="navigate(group.path)">
+        <div>
+          <p>{{ group.label }}</p>
+          <strong>{{ group.count === null || group.count === undefined ? "-" : formatNumber(group.count) }}</strong>
+        </div>
+        <ul>
+          <li v-for="sample in todoSamples(group.samples)" :key="String(sample.entity_id ?? sample.entity_no)">
+            <span>{{ sample.entity_no }}</span>
+            <em>{{ sample.summary }}</em>
+            <b v-if="sample.status" class="status-tag" :class="statusClass(sample.status as string)">{{ statusLabel(sample.status as string) }}</b>
+            <small>{{ formatDateTime(sample.occurred_at) }}</small>
+          </li>
+          <li v-if="todoSamples(group.samples).length === 0" class="muted-line">暂无样例</li>
+        </ul>
+      </article>
+    </div>
   </section>
 
   <section class="dashboard-grid">
@@ -193,51 +218,15 @@ onMounted(() => {
     </article>
   </section>
 
-  <section class="workflow-board">
-    <header>
-      <h3>流程看板</h3>
-      <div class="segmented">
-        <button
-          v-for="role in roleTabs"
-          :key="role.key"
-          type="button"
-          :class="{ active: activeRole === role.key }"
-          @click="activeRole = role.key"
-        >{{ role.label }}</button>
-      </div>
-    </header>
-    <div class="todo-grid">
-      <article v-for="group in activeTodoGroups" :key="group.label" class="todo-card" @click="navigate(group.path)">
-        <div>
-          <p>{{ group.label }}</p>
-          <strong>{{ group.count === null || group.count === undefined ? "-" : formatNumber(group.count) }}</strong>
-        </div>
-        <ul>
-          <li v-for="sample in todoSamples(group.samples)" :key="String(sample.entity_id ?? sample.entity_no)">
-            <span>{{ sample.entity_no }}</span>
-            <em>{{ sample.summary }}</em>
-            <b v-if="sample.status" class="status-tag" :class="statusClass(sample.status as string)">
-              {{ statusLabel(sample.status as string) }}
-            </b>
-            <small>{{ formatDateTime(sample.occurred_at) }}</small>
-          </li>
-          <li v-if="todoSamples(group.samples).length === 0" class="muted-line">暂无样例</li>
-        </ul>
-      </article>
-    </div>
-  </section>
-
   <section class="list-section">
     <div class="section-title">
       <h3>最近订单</h3>
     </div>
-    <DataTable
-      :columns="orderColumns"
-      :records="recentOrders"
-      :id-fields="['order_id', 'id']"
-      :loading="loading"
-      empty-message="暂无订单数据"
-      @select="navigate('/orders')"
-    />
+    <DataTable :columns="orderColumns" :records="recentOrders" :id-fields="['order_id', 'id']" :loading="loading" empty-message="暂无订单数据" @select="navigate('/orders')" />
+  </section>
+
+  <section v-if="error" class="state-panel warning">
+    <h2>加载失败</h2>
+    <p>{{ error }}</p>
   </section>
 </template>

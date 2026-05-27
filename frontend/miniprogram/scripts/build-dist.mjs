@@ -1,7 +1,7 @@
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
+import { createRequire } from "node:module";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "src");
@@ -9,9 +9,44 @@ const distDir = join(root, "dist");
 const projectConfigPath = join(root, "project.config.json");
 const distProjectConfigPath = join(distDir, "project.config.json");
 const skippedDirectories = new Set(["__tests__"]);
+const require = createRequire(import.meta.url);
+const ts = loadTypeScript();
 
-rmSync(distDir, { recursive: true, force: true });
-mkdirSync(distDir, { recursive: true });
+function loadTypeScript() {
+  try {
+    return require("typescript");
+  } catch (e) {
+    const storePath = resolve(root, "../../node_modules/.pnpm");
+    const packageDir = readdirSync(storePath).find((name) => name.startsWith("typescript@"));
+    if (!packageDir) {
+      throw e;
+    }
+    return require(join(storePath, packageDir, "node_modules/typescript"));
+  }
+}
+
+export function buildMiniprogramDist() {
+  rmSync(distDir, { recursive: true, force: true });
+  mkdirSync(distDir, { recursive: true });
+
+  emitSourceTree(srcDir);
+
+  const projectConfig = JSON.parse(readFileSync(projectConfigPath, "utf8"));
+  projectConfig.miniprogramRoot = "./";
+  writeFileSync(distProjectConfigPath, `${JSON.stringify(projectConfig, null, 2)}\n`, "utf8");
+
+  writeFileSync(
+    join(distDir, "BUILD_README.md"),
+    [
+      "# 小程序构建产物",
+      "",
+      "该目录由 `pnpm --filter @wecom-bft/miniprogram build` 生成。",
+      "微信开发者工具可直接导入本目录，`project.config.json` 的 `miniprogramRoot` 已指向 `./`。",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+}
 
 function ensureParentDirectory(targetPath) {
   mkdirSync(dirname(targetPath), { recursive: true });
@@ -79,20 +114,6 @@ function emitSourceTree(currentDir) {
   }
 }
 
-emitSourceTree(srcDir);
-
-const projectConfig = JSON.parse(readFileSync(projectConfigPath, "utf8"));
-projectConfig.miniprogramRoot = "./";
-writeFileSync(distProjectConfigPath, `${JSON.stringify(projectConfig, null, 2)}\n`, "utf8");
-
-writeFileSync(
-  join(distDir, "BUILD_README.md"),
-  [
-    "# 小程序构建产物",
-    "",
-    "该目录由 `pnpm --filter @wecom-bft/miniprogram build` 生成。",
-    "微信开发者工具可直接导入本目录，`project.config.json` 的 `miniprogramRoot` 已指向 `./`。",
-    ""
-  ].join("\n"),
-  "utf8"
-);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  buildMiniprogramDist();
+}
