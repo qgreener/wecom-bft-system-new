@@ -3,7 +3,7 @@ import { computed } from "vue";
 import type { AdminRoute } from "@/router/routes";
 import type { PageConfig } from "@/config/pageConfigs";
 import type { RouteAction } from "@/config/actions";
-import { fieldLabel } from "@/config/status";
+import { fieldLabel, isHiddenDetailField } from "@/config/status";
 import { emptyText, firstPresent, formatCent, formatDateTime, formatNumber, isRecord } from "@/utils/format";
 import OrderDocumentChain from "@/components/admin/OrderDocumentChain.vue";
 import StatusTag from "@/components/admin/StatusTag.vue";
@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "action", action: RouteAction, record: AnyRecord): void;
   (e: "close"): void;
+  (e: "navigate-document", documentType: string, documentId: string | number | null, documentNo: string | null): void;
 }>();
 
 const titleNo = computed(() => {
@@ -49,14 +50,14 @@ const usedFields = computed(() => {
 const extraEntries = computed(() => {
   if (!props.detail) return [];
   return Object.entries(props.detail)
-    .filter(([key, value]) => !usedFields.value.has(key) && isPlain(value))
+    .filter(([key, value]) => !usedFields.value.has(key) && !isHiddenDetailField(key) && isPlain(value))
     .slice(0, 10);
 });
 
 const arrayEntries = computed(() => {
   if (!props.detail) return [];
   return Object.entries(props.detail)
-    .filter(([key, value]) => key !== "document_links" && Array.isArray(value) && value.length > 0)
+    .filter(([key, value]) => key !== "document_links" && !isHiddenDetailField(key) && Array.isArray(value) && value.length > 0)
     .slice(0, 4);
 });
 
@@ -175,7 +176,11 @@ function onAction(action: RouteAction): void {
           </dl>
         </section>
 
-        <OrderDocumentChain v-if="config.documentChain" :links="detail.document_links" />
+        <OrderDocumentChain
+          v-if="config.documentChain"
+          :links="detail.document_links"
+          @navigate="(t, id, no) => emit('navigate-document', t, id, no)"
+        />
 
         <section v-for="[key, val] in arrayEntries" :key="key" class="drawer-section">
           <h4>{{ arrayTitle(key) }}</h4>

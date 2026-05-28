@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 import DataTable from "@/components/DataTable.vue";
 import ActionModal from "@/components/ActionModal.vue";
 import BusinessDetailDrawer from "@/components/admin/BusinessDetailDrawer.vue";
@@ -10,9 +11,11 @@ import { NO_ID_ACTIONS, type RouteAction } from "@/config/actions";
 import { actionsForRecord } from "@/config/actionVisibility";
 import { pageConfigFor, type FilterConfig } from "@/config/pageConfigs";
 import { formatNumber } from "@/utils/format";
+import { routeRegistry, type RouteKey } from "@/router/routes";
 
 type AnyRecord = Record<string, unknown>;
 
+const router = useRouter();
 const actionStore = useActionStore();
 const {
   routeKey,
@@ -54,7 +57,11 @@ const statusOverview = computed(() => {
 });
 
 function rowActionItems(record: AnyRecord): RouteAction[] {
-  return actionsForRecord(routeKey.value, record, recordActions.value);
+  const actions = actionsForRecord(routeKey.value, record, recordActions.value);
+  if (routeKey.value === "courses") {
+    return [{ type: "__courseOpenEdit", label: "打开编辑页" }, ...actions];
+  }
+  return actions;
 }
 
 async function onSelect(record: AnyRecord, id: string | null) {
@@ -62,6 +69,10 @@ async function onSelect(record: AnyRecord, id: string | null) {
 }
 
 function onAction(action: RouteAction, record: AnyRecord | null) {
+  if (action.type === "__courseOpenEdit" && record) {
+    openCourseEdit(record);
+    return;
+  }
   actionStore.openModal(action.type, record);
 }
 
@@ -78,6 +89,36 @@ function onFilterChange(field: FilterConfig): void {
   if (field.autoReload) {
     reload();
   }
+}
+
+const DOCUMENT_TYPE_TO_ROUTE: Record<string, RouteKey> = {
+  PAYMENT: "payments",
+  ENTITLEMENT: "entitlements",
+  SHIPMENT: "shipments",
+  REFUND: "refunds",
+  INVOICE: "invoices",
+  RECONCILIATION: "reconciliation",
+  ACCOUNTING: "accounting",
+  AUDIT: "audit"
+};
+
+function onNavigateDocument(documentType: string, documentId: string | number | null, documentNo: string | null) {
+  const targetKey = DOCUMENT_TYPE_TO_ROUTE[documentType];
+  if (!targetKey) return;
+  const targetRoute = routeRegistry.find((r) => r.key === targetKey);
+  if (!targetRoute) return;
+  router.push({
+    path: targetRoute.path,
+    query: {
+      open_document_id: documentId == null ? undefined : String(documentId),
+      open_document_no: documentNo ?? undefined
+    }
+  });
+}
+
+function openCourseEdit(record: AnyRecord): void {
+  const id = record.course_id ?? record.id;
+  if (id) router.push(`/courses/${id}/edit`);
 }
 </script>
 
@@ -171,6 +212,7 @@ function onFilterChange(field: FilterConfig): void {
         :error="detailError"
         @action="onAction"
         @close="closeDetail"
+        @navigate-document="onNavigateDocument"
       />
     </section>
   </template>
