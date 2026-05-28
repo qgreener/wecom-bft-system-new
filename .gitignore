@@ -28,3 +28,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Database backups (含真实数据，不提交)
+deploy/backup-*.sql

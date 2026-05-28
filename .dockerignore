@@ -1,0 +1,21 @@
+# 防止敏感/无用文件进入 docker build context
+.git
+.gitignore
+node_modules
+**/node_modules
+**/dist
+backend/target
+deploy/.env
+deploy/.env.swp
+deploy/.env.local
+deploy/.env.production
+**/.env.local
+**/.env.production
+**/.DS_Store
+**/Thumbs.db
+*.swp
+*.swo
+*~
+.idea
+.vscode
+docs
