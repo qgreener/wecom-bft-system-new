@@ -90,6 +90,7 @@ public class AfterSalesFinanceApplicationService {
     private final AuditLogService auditLogService;
     private final com.wecombft.application.notification.NotificationDispatchService notificationDispatchService;
     private final com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository;
+    private final com.wecombft.infrastructure.integration.mail.MailService mailService;
 
     public AfterSalesFinanceApplicationService(
         JdbcTemplate jdbcTemplate,
@@ -101,7 +102,8 @@ public class AfterSalesFinanceApplicationService {
         OrderDocumentLinkRepository documentLinkRepository,
         AuditLogService auditLogService,
         com.wecombft.application.notification.NotificationDispatchService notificationDispatchService,
-        com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository
+        com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository,
+        com.wecombft.infrastructure.integration.mail.MailService mailService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.idGenerator = idGenerator;
@@ -113,6 +115,7 @@ public class AfterSalesFinanceApplicationService {
         this.auditLogService = auditLogService;
         this.notificationDispatchService = notificationDispatchService;
         this.iamRepository = iamRepository;
+        this.mailService = mailService;
     }
 
     @Transactional
@@ -724,7 +727,24 @@ public class AfterSalesFinanceApplicationService {
         OrderRow order = requireOrder(invoice.orderId());
         upsertDocumentLink(order, "INVOICE", invoiceId, command.invoiceNo(), "ISSUED", invoice.invoiceAmountCent(), "INVOICE_ISSUE", "tax_invoice", "人工开票", principal.userId());
         auditLogService.writeSuccess(principal, "INVOICE", "INVOICE_ISSUE", "TAX_INVOICE", invoice.id(), command.invoiceNo(), invoice.orderId(), "{\"status\":\"ISSUED\"}");
+        sendInvoiceMailIfPossible(invoice, command.invoiceNo(), command.invoiceFile());
         return toInvoiceResponse(requireInvoice(invoiceId));
+    }
+
+    private void sendInvoiceMailIfPossible(InvoiceRow invoice, String invoiceNo, String invoiceFile) {
+        if (invoice.email() == null || invoice.email().isBlank()) {
+            return;
+        }
+        try {
+            String subject = "您的发票已开具：" + invoice.titleName();
+            String content = "尊敬的学员：\n\n您的订单（" + invoice.orderNo() + "）发票已开具。\n"
+                + "发票号码：" + (invoiceNo == null ? "-" : invoiceNo) + "\n"
+                + "发票文件号：" + (invoiceFile == null ? "-" : invoiceFile) + "\n"
+                + "如需协助，请回复本邮件或联系客服。";
+            mailService.send(invoice.email(), subject, content);
+        } catch (Exception e) {
+            // 邮件失败不影响开票主流程
+        }
     }
 
     @Transactional

@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.purchase.PurchaseApplicationService;
+import com.wecombft.application.purchase.PurchaseInviteService;
+import com.wecombft.application.purchase.PurchaseInviteService.ShareLinkView;
 import com.wecombft.application.CreationResult;
 import com.wecombft.interfaces.dto.purchase.PurchaseCreateRequest;
 import com.wecombft.interfaces.dto.purchase.PurchaseInputInvoiceRequest;
@@ -27,9 +29,14 @@ import com.wecombft.shared.web.ApiResponse;
 public class PurchaseAdminController {
 
     private final PurchaseApplicationService purchaseApplicationService;
+    private final PurchaseInviteService purchaseInviteService;
 
-    public PurchaseAdminController(PurchaseApplicationService purchaseApplicationService) {
+    public PurchaseAdminController(
+        PurchaseApplicationService purchaseApplicationService,
+        PurchaseInviteService purchaseInviteService
+    ) {
         this.purchaseApplicationService = purchaseApplicationService;
+        this.purchaseInviteService = purchaseInviteService;
     }
 
     @PostMapping("/api/admin/purchases")
@@ -104,6 +111,17 @@ public class PurchaseAdminController {
                 idempotencyKey,
                 command == null ? null : command.toCommand()),
             TraceIds.currentOrCreate()));
+    }
+
+    @PostMapping("/api/admin/purchases/{purchase_id}/share-link")
+    @RequirePermission("purchase:order:write")
+    public ResponseEntity<ApiResponse<ShareLinkView>> shareLink(
+        @PathVariable("purchase_id") long purchaseId
+    ) {
+        ShareLinkView view = purchaseInviteService.createShareLink(
+            AdminPrincipalContext.currentOrNull(), purchaseId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.created(view, TraceIds.currentOrCreate()));
     }
 
 }

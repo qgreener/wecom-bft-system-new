@@ -195,6 +195,14 @@ async function performAction(action: "confirm" | "reject" | "logistics"): Promis
 }
 
 onMounted(() => {
+  // 1) 优先检查 URL ?invite=<token>，自动免登（finhub.tax 替代企微上下游链消息）
+  const params = new URLSearchParams(window.location.search);
+  const invite = params.get("invite");
+  if (invite && invite.trim()) {
+    void inviteLogin(invite.trim());
+    return;
+  }
+  // 2) 复用本地 session
   const saved = localStorage.getItem("supplier_h5_session");
   if (!saved) return;
   try {
@@ -204,6 +212,30 @@ onMounted(() => {
     localStorage.removeItem("supplier_h5_session");
   }
 });
+
+async function inviteLogin(invite: string): Promise<void> {
+  busy.value = "login";
+  error.value = "";
+  message.value = "";
+  try {
+    const data = await request<SupplierSession>("/api/supplier-h5/auth/token", {
+      method: "POST",
+      body: JSON.stringify({
+        access_token: `invite:${invite}`,
+        // supplier_no 由后端从 invite token 解析，前端任意填
+        supplier_no: ""
+      })
+    });
+    session.value = data;
+    localStorage.setItem("supplier_h5_session", JSON.stringify(data));
+    message.value = `已通过邀请链接登录：${data.supplier_name}`;
+    await loadPurchases();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "邀请链接登录失败";
+  } finally {
+    busy.value = "";
+  }
+}
 </script>
 
 <template>
