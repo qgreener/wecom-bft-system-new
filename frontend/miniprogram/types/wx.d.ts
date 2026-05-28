@@ -1,6 +1,7 @@
 declare function App(options: Record<string, unknown>): void;
 declare function Page(options: Record<string, unknown>): void;
 declare function getApp<T = { globalData?: Record<string, unknown> }>(): T;
+declare function getCurrentPages(): Array<{ setData?: (data: Record<string, unknown>) => void }>;
 
 declare const wx: WechatMiniprogram.Wx;
 
