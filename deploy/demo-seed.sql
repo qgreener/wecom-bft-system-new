@@ -127,7 +127,7 @@ VALUES
      NULL, 'ENABLED', 10, 0, 0),
     (200000000402, 'SPEC_DEMO_PY_PACK',   200000000301, '教材包',    159900, 199900,
      'UNLIMITED', 1, 200000000101, 200000000104, 100000000401,
-     CAST('[{"item":"培训服务","amount_cent":139900,"tax_rule_id":100000000401},{"item":"教材资料","amount_cent":20000,"tax_rule_id":200000000201}]' AS JSON),
+     CAST('{"items":[{"item":"培训服务","amount_cent":139900,"tax_rule_id":100000000401},{"item":"教材资料","amount_cent":20000,"tax_rule_id":200000000201}]}' AS JSON),
      'ENABLED', 20, 0, 0),
 
     -- Java
@@ -136,7 +136,7 @@ VALUES
      NULL, 'ENABLED', 10, 0, 0),
     (200000000404, 'SPEC_DEMO_JA_PACK',   200000000302, '教材包',    179900, 219900,
      'UNLIMITED', 1, 200000000102, 200000000104, 100000000401,
-     CAST('[{"item":"培训服务","amount_cent":149900,"tax_rule_id":100000000401},{"item":"教材资料","amount_cent":30000,"tax_rule_id":200000000201}]' AS JSON),
+     CAST('{"items":[{"item":"培训服务","amount_cent":149900,"tax_rule_id":100000000401},{"item":"教材资料","amount_cent":30000,"tax_rule_id":200000000201}]}' AS JSON),
      'ENABLED', 20, 0, 0),
 
     -- AI Agent
@@ -145,7 +145,7 @@ VALUES
      NULL, 'ENABLED', 10, 0, 0),
     (200000000406, 'SPEC_DEMO_AI_KIT',    200000000303, '实操礼盒版', 199900, 239900,
      'UNLIMITED', 1, 200000000103, 200000000104, 100000000401,
-     CAST('[{"item":"培训服务","amount_cent":169900,"tax_rule_id":100000000401},{"item":"实物礼盒","amount_cent":30000,"tax_rule_id":200000000202}]' AS JSON),
+     CAST('{"items":[{"item":"培训服务","amount_cent":169900,"tax_rule_id":100000000401},{"item":"实物礼盒","amount_cent":30000,"tax_rule_id":200000000202}]}' AS JSON),
      'ENABLED', 20, 0, 0),
 
     -- 前端
