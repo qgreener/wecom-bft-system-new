@@ -350,23 +350,29 @@ async function onUploadFileRef(key: string, bizType: string | undefined, event: 
 .upload-file-ref {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
 }
 .upload-file-ref input {
   flex: 1;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 .upload-trigger {
   display: inline-flex;
   align-items: center;
-  padding: 6px 14px;
+  justify-content: center;
+  padding: 0 16px;
   border: 1px solid var(--accent);
   color: var(--accent);
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   white-space: nowrap;
+  height: auto;
+  min-height: 36px;
 }
 .upload-trigger:hover { background: rgba(13, 148, 136, 0.06); }
 </style>

@@ -138,13 +138,13 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
   ],
   invoiceIssue: [
     { key: "invoice_no", label: "发票号", required: true },
-    { key: "invoice_file", label: "发票 PDF", type: "uploadFileRef", uploadBizType: "TAX_INVOICE", required: true },
+    { key: "invoice_file", label: "发票 PDF", type: "uploadFileRef", uploadBizType: "INVOICE", required: true },
     { key: "issued_at", label: "开票时间", type: "datetime-local" },
     { key: "remark", label: "备注", type: "textarea" }
   ],
   redReverse: [
     { key: "red_invoice_no", label: "红字发票号", required: true },
-    { key: "red_invoice_file", label: "红字发票 PDF", type: "uploadFileRef", uploadBizType: "TAX_INVOICE" },
+    { key: "red_invoice_file", label: "红字发票 PDF", type: "uploadFileRef", uploadBizType: "RED_INVOICE" },
     { key: "red_reversed_at", label: "红冲时间", type: "datetime-local" },
     { key: "remark", label: "红冲原因", type: "textarea", required: true }
   ],
