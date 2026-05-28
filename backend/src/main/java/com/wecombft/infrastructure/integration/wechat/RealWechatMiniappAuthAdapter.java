@@ -8,6 +8,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wecombft.infrastructure.config.WechatMiniappProperties;
 
 @Component
@@ -15,9 +17,11 @@ import com.wecombft.infrastructure.config.WechatMiniappProperties;
 public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
 
     private static final long ACCESS_TOKEN_TTL_SECONDS = 7000L;
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final WechatMiniappProperties properties;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final AtomicReference<CachedToken> cachedToken = new AtomicReference<>(null);
 
     public RealWechatMiniappAuthAdapter(WechatMiniappProperties properties, RestClient.Builder builder) {
@@ -30,7 +34,7 @@ public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
         if (code == null || code.isBlank()) {
             throw new WechatMiniappAuthException("WX_CODE_EMPTY", "wx_code 不能为空");
         }
-        Map<String, Object> response = restClient.get()
+        String body = callWeChat(() -> restClient.get()
             .uri(uri -> uri.scheme("https").host("api.weixin.qq.com").path("/sns/jscode2session")
                 .queryParam("appid", properties.appId())
                 .queryParam("secret", properties.appSecret())
@@ -38,10 +42,8 @@ public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
                 .queryParam("grant_type", "authorization_code")
                 .build())
             .retrieve()
-            .body(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
-        if (response == null) {
-            throw new WechatMiniappAuthException("WX_CODE2SESSION_EMPTY", "code2session 返回为空");
-        }
+            .body(String.class), "code2session");
+        Map<String, Object> response = parseJson(body, "code2session");
         Object errcode = response.get("errcode");
         if (errcode != null && !Integer.valueOf(0).equals(errcode)) {
             throw new WechatMiniappAuthException("WX_CODE2SESSION_FAILED",
@@ -63,18 +65,16 @@ public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
             throw new WechatMiniappAuthException("WX_PHONE_CODE_EMPTY", "phone_code 不能为空");
         }
         String accessToken = obtainAccessToken();
-        Map<String, Object> body = Map.of("code", phoneCode);
-        Map<String, Object> response = restClient.post()
+        Map<String, Object> reqBody = Map.of("code", phoneCode);
+        String body = callWeChat(() -> restClient.post()
             .uri(uri -> uri.scheme("https").host("api.weixin.qq.com")
                 .path("/wxa/business/getuserphonenumber")
                 .queryParam("access_token", accessToken)
                 .build())
-            .body(body)
+            .body(reqBody)
             .retrieve()
-            .body(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
-        if (response == null) {
-            throw new WechatMiniappAuthException("WX_PHONE_EMPTY", "getuserphonenumber 返回为空");
-        }
+            .body(String.class), "getuserphonenumber");
+        Map<String, Object> response = parseJson(body, "getuserphonenumber");
         Object errcode = response.get("errcode");
         if (errcode != null && !Integer.valueOf(0).equals(errcode)) {
             throw new WechatMiniappAuthException("WX_PHONE_FAILED",
@@ -99,17 +99,15 @@ public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
         if (current != null && current.expireAt > now + 30L) {
             return current.token;
         }
-        Map<String, Object> response = restClient.get()
+        String body = callWeChat(() -> restClient.get()
             .uri(uri -> uri.scheme("https").host("api.weixin.qq.com").path("/cgi-bin/token")
                 .queryParam("grant_type", "client_credential")
                 .queryParam("appid", properties.appId())
                 .queryParam("secret", properties.appSecret())
                 .build())
             .retrieve()
-            .body(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
-        if (response == null) {
-            throw new WechatMiniappAuthException("WX_GETTOKEN_EMPTY", "cgi-bin/token 返回为空");
-        }
+            .body(String.class), "cgi-bin/token");
+        Map<String, Object> response = parseJson(body, "cgi-bin/token");
         Object errcode = response.get("errcode");
         if (errcode != null && !Integer.valueOf(0).equals(errcode)) {
             throw new WechatMiniappAuthException("WX_GETTOKEN_FAILED",
@@ -121,6 +119,31 @@ public class RealWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
         }
         cachedToken.set(new CachedToken(token, now + ACCESS_TOKEN_TTL_SECONDS));
         return token;
+    }
+
+    /** 包一层 RestClient 调用，统一把 HTTP 4xx/5xx 转成业务异常，避免直接抛 500 */
+    private String callWeChat(java.util.function.Supplier<String> action, String api) {
+        try {
+            return action.get();
+        } catch (org.springframework.web.client.RestClientResponseException e) {
+            throw new WechatMiniappAuthException("WX_HTTP_" + e.getStatusCode().value(),
+                api + " 调用失败 HTTP " + e.getStatusCode().value() + "（小程序后台可能未开通该接口或 IP 未加白）");
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            throw new WechatMiniappAuthException("WX_NETWORK_FAILED",
+                api + " 网络异常: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Object> parseJson(String body, String api) {
+        if (body == null || body.isBlank()) {
+            throw new WechatMiniappAuthException("WX_RESPONSE_EMPTY", api + " 返回为空");
+        }
+        try {
+            return objectMapper.readValue(body, MAP_TYPE);
+        } catch (Exception e) {
+            throw new WechatMiniappAuthException("WX_RESPONSE_PARSE_FAILED",
+                api + " 响应解析失败: " + body, e);
+        }
     }
 
     private record CachedToken(String token, long expireAt) {

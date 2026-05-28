@@ -169,7 +169,7 @@ public class AccountingWorkbenchService {
         Long inputAmount = jdbcTemplate.queryForObject(
             "select coalesce(sum(total_amount_cent), 0) from purchase_order "
                 + "where input_invoice_status = 'INVOICED' "
-                + "and (completed_at >= ? and completed_at < ?)",
+                + "and (received_at >= ? and received_at < ?)",
             Long.class, range.from(), range.to());
         long revenue = revenueCent == null ? 0 : revenueCent;
         long output = outputTaxCent == null ? 0 : outputTaxCent;

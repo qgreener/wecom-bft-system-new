@@ -124,9 +124,11 @@ public class AuditLogService {
         if (snapshot == null || snapshot.isBlank()) {
             return snapshot;
         }
+        // 1) secret/token 类敏感字段：替换"值"
+        // 2) 手机号脱敏：只替换被双引号包裹的 11 位号码（即 JSON 字符串字段值），避免污染数字型字段（如 student_id）
         return snapshot
-            .replaceAll("(?i)(secret|token|password|api[_-]?v3[_-]?key)\"?\\s*:\\s*\"[^\"]*\"", "$1\":\"********\"")
-            .replaceAll("1[3-9]\\d{9}", "139****0000");
+            .replaceAll("(?i)(\"(?:secret|token|password|api[_-]?v3[_-]?key)\")\\s*:\\s*\"[^\"]*\"", "$1:\"********\"")
+            .replaceAll("\"(1[3-9]\\d{9})\"", "\"139****0000\"");
     }
 
 }

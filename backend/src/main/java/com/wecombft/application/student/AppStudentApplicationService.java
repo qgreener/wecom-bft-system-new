@@ -302,6 +302,16 @@ public class AppStudentApplicationService {
         if (phoneCode == null || phoneCode.isBlank()) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "WX_PHONE_CODE_EMPTY", "phone_code 不能为空");
         }
+        // 演示兜底：phone_code 以 "mock:" 开头时直接取后段作为手机号，
+        // 适用于小程序后台未开通"获取手机号"接口或开发者工具无法获取真实 phoneCode 的场景。
+        String trimmed = phoneCode.trim();
+        if (trimmed.startsWith("mock:")) {
+            String phone = trimmed.substring("mock:".length()).trim();
+            if (!phone.matches("1[3-9]\\d{9}")) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "手动输入的手机号格式错误");
+            }
+            return phone;
+        }
         try {
             String phone = wechatMiniappAuthAdapter.getPhoneNumber(phoneCode);
             if (phone == null || !phone.matches("1[3-9]\\d{9}")) {
