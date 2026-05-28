@@ -117,6 +117,9 @@ function onFileChange(key: string, event: Event): void {
         <button type="button" class="ghost" @click="closeAndReset()">关闭</button>
       </header>
       <template v-if="!successLink">
+        <p v-if="fieldsFor(actionType).length === 0" class="modal-hint">
+          该操作无需额外参数，点击"提交"直接执行；操作完成后会展示结果。
+        </p>
         <label v-for="field in fieldsFor(actionType)" :key="field.key" :class="{ checkbox: field.type === 'checkbox' }">
           <span>{{ field.label }}<strong v-if="field.required">*</strong></span>
           <select v-if="field.type === 'select'" v-model="actionForm[field.key]">
@@ -195,5 +198,13 @@ function onFileChange(key: string, event: Event): void {
   color: var(--muted);
   font-size: 12px;
   margin: 0;
+}
+.modal-hint {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  background: rgba(13, 148, 136, 0.08);
+  color: #047857;
+  border-radius: 6px;
+  font-size: 13px;
 }
 </style>
