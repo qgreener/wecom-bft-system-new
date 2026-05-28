@@ -3,10 +3,11 @@ import type { RouteKey } from "@/router/routes";
 export interface ActionFieldDef {
   key: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json";
+  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file";
   placeholder?: string;
   options?: { label: string; value: string }[];
   required?: boolean;
+  accept?: string;
 }
 
 export interface ActionBinding {
@@ -36,9 +37,11 @@ export const ACTION_LABELS: Record<string, string> = {
   materialConfirm: "确认材料",
   materialClose: "关闭材料",
   supplierSave: "保存供货商",
+  supplierSyncWecom: "从企微上下游同步",
   taxRuleSave: "保存税务规则",
   leadCreate: "新建线索",
   leadFollow: "记录跟进",
+  promotionCodeCreate: "生成推广码",
   leadConvert: "确认转化",
   leadAbandon: "放弃线索",
   courseCreate: "新增课程",
@@ -49,7 +52,8 @@ export const ACTION_LABELS: Record<string, string> = {
   stockFlowCreate: "新增库存流水",
   purchaseCreate: "新建采购单",
   purchaseReceive: "确认收货",
-  purchaseInputInvoice: "回填进项票"
+  purchaseInputInvoice: "回填进项票",
+  purchaseShareLink: "生成推送链接"
 };
 
 export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
@@ -93,9 +97,24 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "remark", label: "备注", type: "textarea" }
   ],
   ship: [
-    { key: "logistics_company_code", label: "物流公司代码", required: true },
-    { key: "logistics_company_name", label: "物流公司名称", required: true },
+    { key: "logistics_company_code", label: "快递公司", type: "select", required: true, options: [
+      { label: "顺丰速运 (SF)", value: "SF" },
+      { label: "京东物流 (JD)", value: "JD" },
+      { label: "中通快递 (ZTO)", value: "ZTO" },
+      { label: "圆通速递 (YTO)", value: "YTO" },
+      { label: "韵达快递 (YD)", value: "YD" },
+      { label: "申通快递 (STO)", value: "STO" },
+      { label: "邮政 (EMS)", value: "EMS" }
+    ] },
+    { key: "logistics_company_name", label: "快递公司名称（备用）" },
     { key: "tracking_no", label: "物流单号", required: true },
+    { key: "package_weight_kg", label: "包裹重量(kg)", type: "number" },
+    { key: "logistics_fee_cent", label: "物流费用(分)", type: "number" },
+    { key: "print_mode", label: "打印方式", type: "select", options: [
+      { label: "不打印", value: "NONE" },
+      { label: "下载面单", value: "DOWNLOAD" },
+      { label: "云打印", value: "CLOUD" }
+    ] },
     { key: "waybill_file", label: "面单文件" },
     { key: "mock_scenario", label: "Mock 场景", type: "select", options: [
       { label: "正常", value: "" },
@@ -126,10 +145,8 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "bill_source", label: "账单来源", type: "select", options: [
       { label: "微信支付结算单", value: "WECHAT_SETTLEMENT" },
       { label: "微信支付交易账单", value: "WECHAT_TRADE" }
-    ], required: true },
-    { key: "file_name", label: "文件名", required: true },
-    { key: "file_digest", label: "文件摘要", required: true },
-    { key: "records_json", label: "账单明细 JSON", type: "json", placeholder: "[{\"merchant_order_no\":\"...\"}]" }
+    ] },
+    { key: "file", label: "对账单文件 (CSV)", type: "file", accept: ".csv,text/csv", required: true }
   ],
   reconciliationCheck: [
     { key: "checked_flag", label: "标记为已核对", type: "checkbox" },
@@ -176,6 +193,13 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
       { label: "停用", value: "DISABLED" }
     ] }
   ],
+  supplierSyncWecom: [
+    { key: "wecom_corp_id", label: "上下游企微 corp_id", required: true, placeholder: "企微开放平台获取" },
+    { key: "supplier_name", label: "供货商名称", required: true, placeholder: "建议从企微通讯录复制" },
+    { key: "contact_name", label: "对接人姓名", required: true },
+    { key: "contact_mobile", label: "对接人手机号" },
+    { key: "supply_skus", label: "供应 SKU 编码（逗号分隔）", placeholder: "可选，便于后续采购下单" }
+  ],
   taxRuleSave: [
     { key: "rule_id", label: "规则 ID(编辑时填写)", type: "number" },
     { key: "rule_name", label: "规则名称", required: true },
@@ -200,6 +224,16 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "intent_course_id", label: "意向课程 ID", type: "number" },
     { key: "next_follow_at", label: "下次跟进", type: "datetime-local" },
     { key: "remark", label: "备注", type: "textarea" }
+  ],
+  promotionCodeCreate: [
+    { key: "name", label: "推广码名称", required: true, placeholder: "例：小红书春季招生" },
+    { key: "channel", label: "推广渠道", type: "select", required: true, options: [
+      { label: "小红书", value: "XHS" },
+      { label: "朋友圈", value: "WECHAT_MOMENTS" },
+      { label: "公众号", value: "WECHAT_OFFICIAL" },
+      { label: "抖音", value: "DOUYIN" },
+      { label: "其他", value: "OTHER" }
+    ] }
   ],
   leadFollow: [
     { key: "follow_method", label: "跟进方式", type: "select", options: [
@@ -335,18 +369,20 @@ export const ACTION_BINDINGS: Record<string, ActionBinding> = {
   sign:                 { urlFor: (id: string) => `/api/admin/shipments/${id}/sign` },
   invoiceIssue:         { urlFor: (id: string) => `/api/admin/invoices/${id}/issue-manual` },
   redReverse:           { urlFor: (id: string) => `/api/admin/invoices/${id}/red-reverse` },
-  reconciliationImport: { urlFor: () => `/api/admin/reconciliation/batches` },
+  reconciliationImport: { urlFor: () => `/api/admin/reconciliation/batches/upload` },
   reconciliationCheck:  { urlFor: (id: string) => `/api/admin/reconciliation/records/${id}/check` },
   materialCreate:       { urlFor: () => `/api/admin/accounting/materials` },
   materialUpload:       { urlFor: (id: string) => `/api/admin/accounting/materials/${id}/actions`, action: "UPLOAD" },
   materialConfirm:      { urlFor: (id: string) => `/api/admin/accounting/materials/${id}/actions`, action: "CONFIRM" },
   materialClose:        { urlFor: (id: string) => `/api/admin/accounting/materials/${id}/actions`, action: "CLOSE" },
   supplierSave:         { urlFor: () => `/api/admin/suppliers` },
+  supplierSyncWecom:    { urlFor: () => `/api/admin/suppliers/sync-wecom` },
   taxRuleSave:          { urlFor: () => `/api/admin/tax-rules` },
   leadCreate:           { urlFor: () => `/api/admin/leads` },
   leadFollow:           { urlFor: (id: string) => `/api/admin/leads/${id}/follow-records` },
   leadConvert:          { urlFor: (id: string) => `/api/admin/leads/${id}/status`, staticPayload: { target_status: "CONVERTED" } },
   leadAbandon:          { urlFor: (id: string) => `/api/admin/leads/${id}/status`, staticPayload: { target_status: "ABANDONED" } },
+  promotionCodeCreate:  { urlFor: () => `/api/admin/promotion-codes` },
   courseCreate:         { urlFor: () => `/api/admin/courses` },
   courseSpecSave:       { urlFor: (id: string) => `/api/admin/courses/${id}/specs` },
   lessonNodeSave:       { urlFor: (id: string) => `/api/admin/courses/${id}/lesson-nodes` },
@@ -355,7 +391,8 @@ export const ACTION_BINDINGS: Record<string, ActionBinding> = {
   stockFlowCreate:      { urlFor: () => `/api/admin/inventory/stock-flows` },
   purchaseCreate:       { urlFor: () => `/api/admin/purchases` },
   purchaseReceive:      { urlFor: (id: string) => `/api/admin/purchases/${id}/receive` },
-  purchaseInputInvoice: { urlFor: (id: string) => `/api/admin/purchases/${id}/input-invoice` }
+  purchaseInputInvoice: { urlFor: (id: string) => `/api/admin/purchases/${id}/input-invoice` },
+  purchaseShareLink:    { urlFor: (id: string) => `/api/admin/purchases/${id}/share-link` }
 };
 
 export type ActionType = string;
@@ -387,6 +424,7 @@ export const ROUTE_ACTIONS: Partial<Record<RouteKey, RouteAction[]>> = {
   ],
   leads: [
     { type: "leadCreate", label: "新建线索" },
+    { type: "promotionCodeCreate", label: "生成推广码" },
     { type: "leadFollow", label: "跟进" },
     { type: "leadConvert", label: "确认转化" },
     { type: "leadAbandon", label: "放弃" }
@@ -403,10 +441,14 @@ export const ROUTE_ACTIONS: Partial<Record<RouteKey, RouteAction[]>> = {
   ],
   purchases: [
     { type: "purchaseCreate", label: "新建采购单" },
+    { type: "purchaseShareLink", label: "生成推送链接" },
     { type: "purchaseReceive", label: "确认收货" },
     { type: "purchaseInputInvoice", label: "回填进项票" }
   ],
-  suppliers: [{ type: "supplierSave", label: "保存供货商" }],
+  suppliers: [
+    { type: "supplierSave", label: "保存供货商" },
+    { type: "supplierSyncWecom", label: "从企微上下游同步" }
+  ],
   taxRules: [{ type: "taxRuleSave", label: "保存税务规则" }]
 };
 
@@ -414,8 +456,10 @@ export const NO_ID_ACTIONS: ReadonlySet<ActionType> = new Set<ActionType>([
   "reconciliationImport",
   "materialCreate",
   "supplierSave",
+  "supplierSyncWecom",
   "taxRuleSave",
   "leadCreate",
+  "promotionCodeCreate",
   "courseCreate",
   "skuSave",
   "stockFlowCreate",

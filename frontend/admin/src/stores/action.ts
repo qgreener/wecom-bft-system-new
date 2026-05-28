@@ -102,7 +102,34 @@ export const useActionStore = defineStore("action", () => {
     return payload;
   }
 
-  async function submit(): Promise<void> {
+  function hasFileField(type: string): boolean {
+    return (ACTION_FIELD_DEFS[type] ?? []).some((f) => f.type === "file");
+  }
+
+  function buildFormData(type: string): FormData {
+    const fields = new Map((ACTION_FIELD_DEFS[type] ?? []).map((field) => [field.key, field]));
+    const fd = new FormData();
+    for (const [key, rawValue] of Object.entries(actionForm)) {
+      const field = fields.get(key);
+      if (rawValue == null) continue;
+      if (field?.type === "file") {
+        if (rawValue instanceof File) {
+          fd.append(key, rawValue);
+        }
+        continue;
+      }
+      if (typeof rawValue === "string" && rawValue.trim() === "") continue;
+      const value = typeof rawValue === "string" ? rawValue.trim() : rawValue;
+      if (field?.type === "checkbox") {
+        fd.append(key, String(Boolean(value)));
+      } else {
+        fd.append(key, String(value));
+      }
+    }
+    return fd;
+  }
+
+  async function submit(): Promise<unknown> {
     const type = actionType.value as ActionType;
     const binding = ACTION_BINDINGS[type];
     if (!binding) {
@@ -112,11 +139,23 @@ export const useActionStore = defineStore("action", () => {
     actionLoading.value = true;
     actionError.value = "";
     try {
+      const isMultipart = hasFileField(type);
+      const scope = binding.action ? `${type}:${binding.action}` : String(type);
+      if (isMultipart) {
+        const fd = buildFormData(type);
+        Object.entries(binding.staticPayload ?? {}).forEach(([k, v]) => fd.append(k, String(v)));
+        if (binding.action) fd.append("action", binding.action);
+        return await request(binding.urlFor(getActionId()), {
+          method: "POST",
+          body: fd,
+          idempotent: true,
+          idempotencyScope: scope
+        });
+      }
       const payload = buildPayload(type);
       Object.assign(payload, binding.staticPayload ?? {});
       if (binding.action) payload.action = binding.action;
-      const scope = binding.action ? `${type}:${binding.action}` : String(type);
-      await request(binding.urlFor(getActionId()), {
+      return await request(binding.urlFor(getActionId()), {
         method: "POST",
         body: JSON.stringify(payload),
         idempotent: true,
