@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { healthEndpoint, surfaces } from "@wecom-bft/shared";
 
 type ApiEnvelope<T> = {
@@ -22,17 +22,28 @@ type LeadResponse = {
 
 const surface = surfaces.lead;
 const form = reactive({
-  name: "王女士",
-  mobile: "13970000001",
+  name: "",
+  mobile: "",
   sourceCode: "ACCEPTANCE-LEAD-H5",
-  intentCourseId: "2000000000000000301"
+  intentCourseId: ""
 });
 const submitting = ref(false);
 const error = ref("");
 const result = ref<LeadResponse | null>(null);
+const fromPromotionCode = ref(false);
 
 const canSubmit = computed(() => {
   return form.name.trim().length >= 2 && /^1\d{10}$/.test(form.mobile.trim());
+});
+
+onMounted(() => {
+  // 从 URL ?code=XXX 自动填充推广码作为来源
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (code && code.trim()) {
+    form.sourceCode = code.trim();
+    fromPromotionCode.value = true;
+  }
 });
 
 function formatTime(value?: string): string {
@@ -106,21 +117,23 @@ async function submitLead(): Promise<void> {
         <strong>匿名入口</strong>
       </header>
 
+      <p v-if="fromPromotionCode" class="message success">已识别推广码：{{ form.sourceCode }}</p>
+
       <form class="lead-form" @submit.prevent="submitLead">
         <label>
           <span>姓名</span>
-          <input v-model="form.name" autocomplete="name" />
+          <input v-model="form.name" placeholder="请输入您的姓名" autocomplete="name" />
         </label>
         <label>
           <span>手机号</span>
-          <input v-model="form.mobile" inputmode="tel" autocomplete="tel" />
+          <input v-model="form.mobile" placeholder="请输入 11 位手机号" inputmode="tel" autocomplete="tel" />
         </label>
         <label>
           <span>来源码</span>
-          <input v-model="form.sourceCode" />
+          <input v-model="form.sourceCode" :readonly="fromPromotionCode" />
         </label>
         <label>
-          <span>意向课程 ID</span>
+          <span>意向课程 ID（选填）</span>
           <input v-model="form.intentCourseId" inputmode="numeric" />
         </label>
         <button type="submit" :disabled="submitting || !canSubmit">
