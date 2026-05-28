@@ -132,6 +132,36 @@ public class FulfillmentApplicationService {
             documentLinkRepository.findByOrderId(shipment.orderId()).stream().map(this::toDocumentLinkResponse).toList());
     }
 
+    /**
+     * 学员侧物流详情：按 order_id 找发货单（一个订单可能没有/有一个发货单），返回发货单 + 全量轨迹。
+     * 不暴露内部库存流水/单据链等管理端字段。
+     */
+    public java.util.List<ShipmentDetailResponse> appShipmentsByOrder(long orderId) {
+        java.util.List<ShipmentRow> shipments = jdbcTemplate.query(
+            """
+            select id, shipment_no, order_id, order_no, student_id, status, receiver_snapshot,
+                   logistics_company_code, logistics_company_name, tracking_no, waybill_file,
+                   shipped_at, shipper_user_id, signed_at, exception_flag, exception_reason, created_at
+            from fulfillment_shipment
+            where order_id = ?
+            order by created_at, id
+            """,
+            (rs, rowNum) -> mapShipment(rs),
+            orderId);
+        java.util.List<ShipmentDetailResponse> result = new java.util.ArrayList<>();
+        for (ShipmentRow shipment : shipments) {
+            result.add(new ShipmentDetailResponse(
+                shipment.toActionResponse(stockFlowIdsForShipment(shipment.id())),
+                shipmentItems(shipment.id()).stream()
+                    .map(item -> new ShipmentItemResponse(item.id(), item.skuId(), item.skuNo(), item.skuName(), item.lineType(), item.quantity(), item.stockFlowId()))
+                    .toList(),
+                tracesByShipment(shipment.id()),
+                java.util.List.of(),
+                java.util.List.of()));
+        }
+        return result;
+    }
+
     @Transactional
     public ShipmentActionResponse ship(AdminPrincipal principal, long shipmentId, String idempotencyKey, ShipCommand command) {
         requireAdmin(principal);

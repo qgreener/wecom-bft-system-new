@@ -189,6 +189,28 @@ export type Shipment = {
   exception_flag?: boolean;
   exception_reason?: string | null;
   created_at?: string | null;
+  logistics_company_name?: string | null;
+  tracking_no?: string | null;
+  shipped_at?: string | null;
+  signed_at?: string | null;
+};
+
+export type LogisticsTrace = {
+  trace_id: number;
+  shipment_id: number;
+  order_id: number;
+  tracking_no: string;
+  logistics_node_time: string;
+  node_status: string;
+  node_desc?: string | null;
+};
+
+export type ShipmentDetail = {
+  shipment: Shipment;
+  items?: Array<{ id: number; sku_name?: string; quantity?: number }>;
+  traces: LogisticsTrace[];
+  stockFlows?: unknown[];
+  documentLinks?: unknown[];
 };
 
 export type Entitlement = {

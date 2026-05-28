@@ -1,19 +1,28 @@
 <view class="page">
   <view wx:if="{{loading}}" class="loading">加载物流详情</view>
   <view wx:elif="{{error}}" class="error">{{error}}</view>
-  <view wx:elif="{{order}}">
-    <view class="card gap">
-      <view class="h2 section">接口缺口</view>
-      <view class="subtle">{{gap}}</view>
+  <view wx:else>
+    <view wx:if="{{shipments.length === 0}}" class="card">
+      <view class="subtle">该订单暂无物流信息（虚拟商品订单或尚未生成发货单）</view>
     </view>
-
-    <view wx:for="{{shipments}}" wx:key="shipment_id" class="card">
+    <view wx:for="{{shipments}}" wx:key="shipment_id" class="card gap">
       <view class="between">
         <view class="h2">{{item.shipment_no}}</view>
         <text class="status-tag {{item.status_tone}}">{{item.status_text}}</text>
       </view>
       <view class="subtle">收货地址：{{item.receiver_line}}</view>
-      <view class="subtle">创建：{{item.created_text}}</view>
+      <view wx:if="{{item.logistics_company_name}}" class="subtle">物流：{{item.logistics_company_name}} · {{item.tracking_no}}</view>
+      <view wx:if="{{item.shipped_text !== '-'}}" class="subtle">发货时间：{{item.shipped_text}}</view>
+      <view wx:if="{{item.signed_text !== '-'}}" class="subtle">签收时间：{{item.signed_text}}</view>
+
+      <view wx:if="{{item.traces.length > 0}}" class="section">
+        <view class="h2 section">物流轨迹</view>
+        <view wx:for="{{item.traces}}" wx:for-item="t" wx:key="trace_id" class="line">
+          <view><text class="status-tag info">{{t.node_status_text}}</text> {{t.node_desc || ''}}</view>
+          <view class="subtle">{{t.time_text}}</view>
+        </view>
+      </view>
+      <view wx:else class="subtle section">暂无物流轨迹</view>
     </view>
   </view>
 </view>

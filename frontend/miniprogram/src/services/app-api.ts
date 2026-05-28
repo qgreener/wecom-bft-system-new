@@ -267,6 +267,12 @@ export function fetchInvoices(): Promise<{ records: InvoiceResponse[] }> {
   });
 }
 
+export function fetchOrderLogistics(orderId: number): Promise<import("../types/api").ShipmentDetail[]> {
+  return request<import("../types/api").ShipmentDetail[]>(`/api/app/orders/${orderId}/logistics`, {
+    accessToken: getAccessToken()
+  });
+}
+
 // 通知信息
 export function fetchNotifications(): Promise<NotificationItem[]> {
   return request<NotificationItem[]>("/api/app/notifications", {
