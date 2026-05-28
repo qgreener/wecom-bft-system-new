@@ -305,7 +305,11 @@ public class FulfillmentApplicationService {
     }
 
     /**
-     * Mock 物流：发货后延迟 5 秒投递一次"已签收"轨迹回调。
+     * Mock 物流：发货后分阶段投递轨迹回调，让学员看到完整链路。
+     * - +1s 已揽件
+     * - +3s 运输中
+     * - +5s 派送中
+     * - +7s 已签收（signedFlag=true）
      * 走和真实回调一样的 handleLogisticsCallback 路径，保证状态机/审计/单据链一致。
      */
     private void scheduleMockSignedCallback(String shipmentNo, String trackingNo) {
@@ -313,26 +317,34 @@ public class FulfillmentApplicationService {
             new org.springframework.transaction.support.TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    MOCK_LOGISTICS_EXECUTOR.schedule(() -> {
-                        try {
-                            String mockEventNo = "MOCK_LOGI_" + System.currentTimeMillis() + "_" + trackingNo;
-                            LogisticsTraceCommand command = new LogisticsTraceCommand(
-                                mockEventNo,
-                                shipmentNo,
-                                trackingNo,
-                                LocalDateTime.now(),
-                                "SIGNED",
-                                "已签收（自动模拟）",
-                                Boolean.TRUE,
-                                Map.of("scenario", "auto_mock_logistics_signed",
-                                       "mock_event_no", mockEventNo));
-                            handleLogisticsCallback(command);
-                        } catch (RuntimeException e) {
-                            // mock 回调失败不影响发货结果，留给人工/Mock 场景控制页补偿
-                        }
-                    }, 5, java.util.concurrent.TimeUnit.SECONDS);
+                    scheduleTraceTick(shipmentNo, trackingNo, "PICKED_UP", "快递已揽件", false, 1);
+                    scheduleTraceTick(shipmentNo, trackingNo, "IN_TRANSIT", "运输中（途经中转站）", false, 3);
+                    scheduleTraceTick(shipmentNo, trackingNo, "OUT_FOR_DELIVERY", "派送中（快递员配送中）", false, 5);
+                    scheduleTraceTick(shipmentNo, trackingNo, "SIGNED", "已签收（自动模拟）", true, 7);
                 }
             });
+    }
+
+    private void scheduleTraceTick(String shipmentNo, String trackingNo, String nodeStatus,
+                                   String nodeDesc, boolean signedFlag, int delaySeconds) {
+        MOCK_LOGISTICS_EXECUTOR.schedule(() -> {
+            try {
+                String mockEventNo = "MOCK_LOGI_" + System.currentTimeMillis() + "_" + nodeStatus + "_" + trackingNo;
+                LogisticsTraceCommand command = new LogisticsTraceCommand(
+                    mockEventNo,
+                    shipmentNo,
+                    trackingNo,
+                    LocalDateTime.now(),
+                    nodeStatus,
+                    nodeDesc,
+                    signedFlag ? Boolean.TRUE : Boolean.FALSE,
+                    Map.of("scenario", "auto_mock_logistics_" + nodeStatus.toLowerCase(),
+                           "mock_event_no", mockEventNo));
+                handleLogisticsCallback(command);
+            } catch (RuntimeException e) {
+                // mock 回调失败不影响发货结果
+            }
+        }, delaySeconds, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     @Transactional
