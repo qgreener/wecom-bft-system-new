@@ -159,9 +159,14 @@ public class RealWecomApprovalAdapter implements WecomApprovalAdapter {
     }
 
     private Map<String, Object> buildApplyBody(WecomApprovalCommand command, TemplateControlIds controlIds) {
+        // 模板里的标题/描述都是必填项，传空串企微会拒绝（errcode=301025）
+        String title = (command.title() == null || command.title().isBlank())
+            ? "（无标题）" : command.title();
+        String description = (command.description() == null || command.description().isBlank())
+            ? "（无补充说明）" : command.description();
         List<Map<String, Object>> contents = new ArrayList<>();
-        contents.add(buildTextControl(controlIds.titleId(), command.title()));
-        contents.add(buildTextareaControl(controlIds.descId(), command.description()));
+        contents.add(buildTextControl(controlIds.titleId(), title));
+        contents.add(buildTextareaControl(controlIds.descId(), description));
 
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("creator_userid", command.creatorWecomUserId());
@@ -177,7 +182,7 @@ public class RealWecomApprovalAdapter implements WecomApprovalAdapter {
         body.put("apply_data", Map.of("contents", contents));
         body.put("summary_list", List.of(Map.of(
             "summary_info", List.of(Map.of(
-                "text", command.title() == null ? "" : command.title(),
+                "text", title,
                 "lang", "zh_CN")))));
         return body;
     }

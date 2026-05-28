@@ -7,11 +7,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wecombft.application.system.SystemAdminUserService;
 import com.wecombft.application.system.SystemAdminUserService.AdminUserView;
+import com.wecombft.infrastructure.security.AdminPrincipal;
+import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.infrastructure.security.PermissionCatalog;
 import com.wecombft.infrastructure.security.PermissionCatalog.RolePolicy;
 import com.wecombft.infrastructure.security.RequirePermission;
@@ -23,10 +26,14 @@ public class SystemAdminUserController {
 
     private final SystemAdminUserService service;
     private final PermissionCatalog permissionCatalog;
+    private final AdminSessionService adminSessionService;
 
-    public SystemAdminUserController(SystemAdminUserService service, PermissionCatalog permissionCatalog) {
+    public SystemAdminUserController(SystemAdminUserService service,
+                                     PermissionCatalog permissionCatalog,
+                                     AdminSessionService adminSessionService) {
         this.service = service;
         this.permissionCatalog = permissionCatalog;
+        this.adminSessionService = adminSessionService;
     }
 
     @GetMapping("/api/admin/system/admin-users")
@@ -49,6 +56,20 @@ public class SystemAdminUserController {
             TraceIds.currentOrCreate()));
     }
 
+    @PostMapping("/api/admin/system/admin-users/{user_id}/roles")
+    @RequirePermission("iam:role-grant")
+    public ResponseEntity<ApiResponse<AdminUserView>> assignRoles(
+        @RequestHeader("Authorization") String authorization,
+        @PathVariable("user_id") long userId,
+        @RequestBody RolesBody body
+    ) {
+        AdminPrincipal principal = adminSessionService.require(authorization);
+        List<String> roleCodes = body == null || body.roleCodes() == null ? List.of() : body.roleCodes();
+        return ResponseEntity.ok(ApiResponse.ok(
+            service.assignRoles(userId, principal.userId(), roleCodes),
+            TraceIds.currentOrCreate()));
+    }
+
     @GetMapping("/api/admin/system/role-matrix")
     @RequirePermission("system:config:read")
     public ResponseEntity<ApiResponse<List<RolePolicy>>> roleMatrix() {
@@ -56,5 +77,8 @@ public class SystemAdminUserController {
     }
 
     public record StatusBody(String targetStatus) {
+    }
+
+    public record RolesBody(List<String> roleCodes) {
     }
 }

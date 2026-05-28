@@ -45,7 +45,8 @@ public class AdminSecurityInterceptor implements HandlerInterceptor {
         return "/api/admin/auth/test-login".equals(path)
             || "/api/admin/auth/wecom-login".equals(path)
             || "/api/admin/auth/wecom-oauth/start-redirect".equals(path)
-            || "/api/admin/auth/wecom-oauth/callback".equals(path);
+            || "/api/admin/auth/wecom-oauth/callback".equals(path)
+            || "/api/admin/auth/wecom-oauth/qr-config".equals(path);
     }
 
     private AdminPrincipal authenticate(HttpServletRequest request, Object handler) {

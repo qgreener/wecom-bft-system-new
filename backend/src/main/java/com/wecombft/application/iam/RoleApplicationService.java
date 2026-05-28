@@ -80,6 +80,14 @@ public class RoleApplicationService {
         return toResponse(approval);
     }
 
+    /** 当前未分配角色用户查"我有没有 PENDING 中的角色申请"。null = 没有。*/
+    public ApprovalResponse findMyPending(String authorizationHeader) {
+        AdminPrincipal principal = adminSessionService.require(authorizationHeader);
+        return iamRepository.findAnyPendingRoleApplication(principal.userId())
+            .map(this::toResponse)
+            .orElse(null);
+    }
+
     @Transactional
     public ApprovalResponse action(String authorizationHeader, long approvalId, ApprovalActionCommand command) {
         AdminPrincipal approver = adminSessionService.requirePermission(authorizationHeader, "iam:role-application:approve");

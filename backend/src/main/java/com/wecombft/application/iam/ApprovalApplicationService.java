@@ -115,8 +115,21 @@ public class ApprovalApplicationService {
     }
 
     private void dispatchCourse(ApprovalRecord approval, String action, String comment) {
-        courseApplicationService.approvalAction(approval.id(),
-            new CourseApprovalActionCommand(action, comment));
+        // courseApplicationService.approvalAction 从 AdminPrincipalContext (ThreadLocal) 取登录态，
+        // 回调线程默认为空，需要临时注入超管身份再调用
+        String token = systemSuperAdminToken();
+        if (token == null) {
+            log.warn("applyWecomResult: no SUPER_ADMIN available for course approval");
+            return;
+        }
+        AdminPrincipal principal = adminSessionService.require("Bearer " + token);
+        com.wecombft.infrastructure.security.AdminPrincipalContext.set(principal);
+        try {
+            courseApplicationService.approvalAction(approval.id(),
+                new CourseApprovalActionCommand(action, comment));
+        } finally {
+            com.wecombft.infrastructure.security.AdminPrincipalContext.clear();
+        }
     }
 
     private String mapAction(String wecomStatus) {

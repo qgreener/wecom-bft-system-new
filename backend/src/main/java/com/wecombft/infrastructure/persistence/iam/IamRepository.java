@@ -164,6 +164,25 @@ public class IamRepository {
             .findFirst();
     }
 
+    public Optional<ApprovalRecord> findAnyPendingRoleApplication(long applicantUserId) {
+        return jdbcTemplate.query(
+                """
+                select id, approval_no, approval_type, title, applicant_user_id, approver_user_id,
+                       related_object_type, related_object_id, related_object_no, status,
+                       submit_reason, approval_comment, submitted_at, finished_at
+                from approval_record
+                where applicant_user_id = ?
+                  and approval_type = 'ROLE_APPLICATION'
+                  and status = 'PENDING'
+                order by submitted_at desc
+                limit 1
+                """,
+                approvalMapper(),
+                applicantUserId)
+            .stream()
+            .findFirst();
+    }
+
     public Optional<ApprovalRecord> findApprovalById(long approvalId) {
         return jdbcTemplate.query(
                 """

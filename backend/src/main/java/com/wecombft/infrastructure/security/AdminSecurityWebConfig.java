@@ -21,7 +21,8 @@ public class AdminSecurityWebConfig implements WebMvcConfigurer {
                 "/api/admin/auth/test-login",
                 "/api/admin/auth/wecom-login",
                 "/api/admin/auth/wecom-oauth/start-redirect",
-                "/api/admin/auth/wecom-oauth/callback"
+                "/api/admin/auth/wecom-oauth/callback",
+                "/api/admin/auth/wecom-oauth/qr-config"
             );
     }
 }

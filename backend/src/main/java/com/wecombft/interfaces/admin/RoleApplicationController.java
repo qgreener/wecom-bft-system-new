@@ -2,6 +2,7 @@ package com.wecombft.interfaces.admin;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -33,6 +34,15 @@ public class RoleApplicationController {
         ApprovalResponse response = roleApplicationService.submit(authorization, idempotencyKey, command == null ? null : command.toCommand());
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.created(response, TraceIds.currentOrCreate()));
+    }
+
+    /** 让"申请角色"页能查到当前用户是否已有 PENDING 申请，并据此切换为"等待审批"态 */
+    @GetMapping("/api/admin/role-applications/me/pending")
+    public ResponseEntity<ApiResponse<ApprovalResponse>> myPending(
+        @RequestHeader("Authorization") String authorization
+    ) {
+        ApprovalResponse response = roleApplicationService.findMyPending(authorization);
+        return ResponseEntity.ok(ApiResponse.ok(response, TraceIds.currentOrCreate()));
     }
 
 }
