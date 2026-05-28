@@ -121,18 +121,31 @@ function renderCharts(): void {
 function renderTrendChart(): void {
   if (!trendChartEl.value || !overview.value) return;
   if (!trendChart) trendChart = echarts.init(trendChartEl.value);
-  const points = overview.value.revenue_trend ?? [];
-  const days = points.map((p) => p.day ?? "-");
-  const counts = points.map((p) => Number(p.order_count ?? 0));
-  const revenues = points.map((p) => Number(p.revenue_cent ?? 0) / 100);
+  // 按 trendDays 配置生成固定 X 轴（最近 N 天），缺数据的日子用 0 填充，避免出现单列空图
+  const days: string[] = [];
+  for (let i = trendDays.value - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(5, 10));
+  }
+  const dayMap = new Map<string, { count: number; revenue: number }>();
+  for (const p of overview.value.revenue_trend ?? []) {
+    const key = String(p.day ?? "").slice(-5);
+    if (!key) continue;
+    dayMap.set(key, {
+      count: Number(p.order_count ?? 0),
+      revenue: Number(p.revenue_cent ?? 0) / 100
+    });
+  }
+  const counts = days.map((d) => dayMap.get(d)?.count ?? 0);
+  const revenues = days.map((d) => dayMap.get(d)?.revenue ?? 0);
   trendChart.setOption({
-    title: { text: "近期营收趋势", left: "left", textStyle: { fontSize: 14 } },
     tooltip: { trigger: "axis" },
-    legend: { data: ["订单数", "营收(元)"], right: 10 },
-    grid: { left: 50, right: 60, top: 50, bottom: 40 },
-    xAxis: { type: "category", data: days },
+    legend: { data: ["订单数", "营收(元)"], right: 10, top: 6 },
+    grid: { left: 56, right: 60, top: 40, bottom: 28 },
+    xAxis: { type: "category", data: days, axisTick: { show: false } },
     yAxis: [
-      { type: "value", name: "订单数", position: "left" },
+      { type: "value", name: "订单数", position: "left", minInterval: 1 },
       { type: "value", name: "营收(元)", position: "right" }
     ],
     series: [
@@ -140,7 +153,8 @@ function renderTrendChart(): void {
         name: "订单数",
         type: "bar",
         data: counts,
-        itemStyle: { color: "#1f4e5f" }
+        barMaxWidth: 28,
+        itemStyle: { color: "#1f4e5f", borderRadius: [4, 4, 0, 0] }
       },
       {
         name: "营收(元)",
@@ -148,6 +162,7 @@ function renderTrendChart(): void {
         yAxisIndex: 1,
         data: revenues,
         smooth: true,
+        symbolSize: 7,
         itemStyle: { color: "#0f766e" }
       }
     ]
@@ -160,11 +175,12 @@ function renderFunnelChart(): void {
   if (!funnelChart) funnelChart = echarts.init(funnelChartEl.value);
   const f = overview.value.conversion_funnel ?? {};
   funnelChart.setOption({
-    title: { text: "线索 → 订单 转化漏斗", left: "left", textStyle: { fontSize: 14 } },
     tooltip: { trigger: "item", formatter: "{b}: {c}" },
     series: [{
       name: "转化漏斗",
       type: "funnel",
+      top: 10,
+      bottom: 10,
       left: "10%",
       width: "80%",
       sort: "descending",
@@ -190,9 +206,8 @@ function renderSalesChart(): void {
   const names = ranking.map((r) => r.course_title ?? `课程${r.course_id}`);
   const revenues = ranking.map((r) => Number(r.revenue_cent ?? 0) / 100);
   salesChart.setOption({
-    title: { text: "课程销量排行（按营收）", left: "left", textStyle: { fontSize: 14 } },
     tooltip: { trigger: "axis" },
-    grid: { left: 120, right: 30, top: 50, bottom: 40 },
+    grid: { left: 120, right: 30, top: 16, bottom: 40 },
     xAxis: { type: "value", name: "营收(元)" },
     yAxis: { type: "category", data: names, inverse: true },
     series: [{
@@ -278,9 +293,18 @@ function onResize(): void {
     </section>
 
     <section class="chart-grid">
-      <div ref="trendChartEl" class="chart-block tall"></div>
-      <div ref="funnelChartEl" class="chart-block"></div>
-      <div ref="salesChartEl" class="chart-block tall"></div>
+      <article class="chart-card tall">
+        <header><h3>近期营收趋势</h3><small>近 {{ trendDays }} 日</small></header>
+        <div ref="trendChartEl" class="chart-block-canvas"></div>
+      </article>
+      <article class="chart-card">
+        <header><h3>线索 → 订单 转化漏斗</h3></header>
+        <div ref="funnelChartEl" class="chart-block-canvas"></div>
+      </article>
+      <article class="chart-card tall">
+        <header><h3>课程销量排行（按营收）</h3></header>
+        <div ref="salesChartEl" class="chart-block-canvas"></div>
+      </article>
     </section>
 
     <section class="state-panel">
@@ -354,18 +378,41 @@ function onResize(): void {
   gap: 16px;
   margin-top: 20px;
 }
-.chart-block {
-  height: 260px;
+.chart-card {
   background: #fff;
   border: 1px solid var(--line);
-  padding: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
 }
-.chart-block.tall {
-  height: 320px;
+.chart-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
 }
-.chart-grid > .chart-block.tall:last-child {
+.chart-card header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.chart-card header small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chart-block-canvas {
+  flex: 1;
+  min-height: 220px;
+}
+.chart-card.tall {
+  min-height: 320px;
+}
+.chart-card.tall .chart-block-canvas {
+  min-height: 280px;
+}
+.chart-grid > .chart-card.tall:last-child {
   grid-column: span 2;
-  height: 340px;
+  min-height: 340px;
 }
 .empty {
   text-align: center;

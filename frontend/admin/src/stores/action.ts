@@ -240,6 +240,10 @@ export const useActionStore = defineStore("action", () => {
     }
   }
 
+  function setError(message: string): void {
+    actionError.value = message;
+  }
+
   return {
     actionType,
     actionRecord,
@@ -249,6 +253,7 @@ export const useActionStore = defineStore("action", () => {
     openModal,
     addItemRow,
     removeItemRow,
+    setError,
     closeModal,
     submit,
     getActionId

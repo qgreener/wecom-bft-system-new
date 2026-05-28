@@ -3,7 +3,7 @@ import type { RouteKey } from "@/router/routes";
 export interface ActionFieldDef {
   key: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file" | "remoteSelect" | "itemTable";
+  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file" | "remoteSelect" | "itemTable" | "uploadFileRef";
   placeholder?: string;
   options?: { label: string; value: string }[];
   required?: boolean;
@@ -14,6 +14,8 @@ export interface ActionFieldDef {
   columns?: ActionFieldDef[];
   /** 用于 itemTable：从某个上下文 record 字段（如 purchase 的 items）预填初始行 */
   prefillFrom?: string;
+  /** 用于 uploadFileRef：上传文件的 biz_type（biz_id 取 actionRecord 的 ID） */
+  uploadBizType?: string;
 }
 
 export interface ActionBinding {
@@ -136,13 +138,13 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
   ],
   invoiceIssue: [
     { key: "invoice_no", label: "发票号", required: true },
-    { key: "invoice_file", label: "发票文件号", required: true },
+    { key: "invoice_file", label: "发票 PDF", type: "uploadFileRef", uploadBizType: "TAX_INVOICE", required: true },
     { key: "issued_at", label: "开票时间", type: "datetime-local" },
     { key: "remark", label: "备注", type: "textarea" }
   ],
   redReverse: [
     { key: "red_invoice_no", label: "红字发票号", required: true },
-    { key: "red_invoice_file", label: "红冲凭证文件号" },
+    { key: "red_invoice_file", label: "红字发票 PDF", type: "uploadFileRef", uploadBizType: "TAX_INVOICE" },
     { key: "red_reversed_at", label: "红冲时间", type: "datetime-local" },
     { key: "remark", label: "红冲原因", type: "textarea", required: true }
   ],

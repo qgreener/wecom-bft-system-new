@@ -128,6 +128,39 @@ function onFileChange(key: string, event: Event): void {
   const file = input.files?.[0] ?? null;
   (actionForm.value as Record<string, unknown>)[key] = file;
 }
+
+const uploading = ref<Record<string, boolean>>({});
+
+async function onUploadFileRef(key: string, bizType: string | undefined, event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] ?? null;
+  if (!file) return;
+  if (!bizType) {
+    actionStore.setError("上传字段未配置 uploadBizType");
+    return;
+  }
+  uploading.value = { ...uploading.value, [key]: true };
+  try {
+    const bizId = actionStore.getActionId() || "0";
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("biz_type", bizType);
+    fd.append("biz_id", bizId);
+    const result = await request<{ file_no?: string; fileNo?: string; download_url?: string } | null>(
+      "/api/admin/files",
+      { method: "POST", body: fd, idempotent: true, idempotencyScope: `upload-${key}` }
+    );
+    const fileNo = result?.file_no ?? result?.fileNo ?? "";
+    if (fileNo) {
+      (actionForm.value as Record<string, unknown>)[key] = fileNo;
+    }
+  } catch (e) {
+    actionStore.setError((e as { message?: string })?.message ?? "上传失败");
+  } finally {
+    uploading.value = { ...uploading.value, [key]: false };
+    input.value = "";
+  }
+}
 </script>
 
 <template>
@@ -214,6 +247,22 @@ function onFileChange(key: string, event: Event): void {
             :accept="field.accept"
             @change="onFileChange(field.key, $event)"
           />
+          <div v-else-if="field.type === 'uploadFileRef'" class="upload-file-ref">
+            <input
+              :value="(actionForm[field.key] as string) ?? ''"
+              :placeholder="field.placeholder ?? '点击右侧上传按钮，或手动填写文件号'"
+              @input="(actionForm as Record<string, unknown>)[field.key] = ($event.target as HTMLInputElement).value"
+            />
+            <label class="upload-trigger">
+              <span>{{ uploading[field.key] ? "上传中..." : "上传文件" }}</span>
+              <input
+                type="file"
+                style="display:none"
+                :accept="field.accept ?? '.pdf,.png,.jpg,.jpeg'"
+                @change="onUploadFileRef(field.key, field.uploadBizType, $event)"
+              />
+            </label>
+          </div>
           <input
             v-else
             v-model="actionForm[field.key]"
@@ -298,4 +347,26 @@ function onFileChange(key: string, event: Event): void {
 .item-table .empty { text-align: center; color: #9ca3af; padding: 12px; }
 .item-table .req { color: #dc2626; margin-left: 2px; }
 .add-row { width: auto; padding: 6px 14px; }
+.upload-file-ref {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.upload-file-ref input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+}
+.upload-trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.upload-trigger:hover { background: rgba(13, 148, 136, 0.06); }
 </style>
