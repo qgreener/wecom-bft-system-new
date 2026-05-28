@@ -110,7 +110,25 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   applicant_user_id: "申请人ID", approver_user_id: "审批人ID",
   approval_comment: "审批意见", submit_reason: "提交原因",
   related_object_type: "关联对象类型", related_object_id: "关联对象ID",
-  related_object_no: "关联对象编号"
+  related_object_no: "关联对象编号",
+  // 线索/学员补充
+  lead_id: "线索ID", name: "姓名", intent_course_id: "意向课程ID",
+  owner_user_id: "归属人ID", abandon_reason: "放弃原因",
+  next_follow_at: "下次跟进时间", latest_follow_at: "最近跟进时间",
+  match_exception_flag: "匹配异常", converted_order_id: "转化订单ID",
+  student_no: "学员编号", real_name: "真实姓名", last_login_at: "最近登录",
+  // 推广码
+  promotion_code: "推广码", promotion_name: "推广码名称",
+  promotion_channel: "推广渠道", landing_url: "落地页",
+  // 课程/课节补充
+  lesson_id: "课节ID", lesson_title: "课节标题", lesson_type: "课节类型",
+  live_started_at: "开播时间", live_ended_at: "结束时间",
+  replay_url: "回放链接", duration_minutes: "时长(分钟)",
+  // SKU 补充
+  sku_id: "SKU ID", sku_no: "SKU编号", sku_type: "SKU类型",
+  default_supplier_id: "默认供货商", image_url: "图片",
+  // 状态扩展
+  grant_status: "授权状态", role_code: "角色编码", role_name: "角色名"
 };
 
 /**
@@ -135,11 +153,21 @@ export const HIDDEN_DETAIL_FIELDS: ReadonlySet<string> = new Set<string>([
   "wx_openid",
   "wx_unionid",
   "wecom_external_user_id",
+  "wecom_user_id",
   "course_snapshot",
   "tax_rule_snapshot",
   "price_snapshot",
   "receiver_snapshot",
-  "raw_snapshot"
+  "raw_snapshot",
+  "amount_split_snapshot",
+  "spec_attrs_json",
+  "purchase_items_json",
+  "received_items_json",
+  "permission_codes",
+  "data_scope_code",
+  "field_masks",
+  "menus",
+  "allowed_actions"
 ]);
 
 export function fieldLabel(key: string): string {

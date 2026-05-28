@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { surfaces } from "@wecom-bft/shared";
@@ -8,6 +9,11 @@ const surface = surfaces.admin;
 const router = useRouter();
 const auth = useAuthStore();
 const { roleApp, roleAppError, roleAppLoading, roleAppSubmitted } = storeToRefs(auth);
+
+onMounted(() => {
+  // 进入页面时拉一下我是否有 PENDING 的角色申请，有就直接切到"等待审批"态
+  void auth.loadMyPendingRoleApp();
+});
 
 async function submit(): Promise<void> {
   try {

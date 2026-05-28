@@ -30,8 +30,7 @@ export function isActionRelevant(routeKey: RouteKey, actionType: string, record:
   }
   if (routeKey === "leads") {
     if (actionType === "leadFollow") return status !== "CONVERTED";
-    if (actionType === "leadConvert") return !["CONVERTED", "ABANDONED"].includes(status);
-    if (actionType === "leadAbandon") return status !== "ABANDONED";
+    if (actionType === "leadAbandon") return status !== "ABANDONED" && status !== "CONVERTED";
   }
   return ![
     "refundApprove",

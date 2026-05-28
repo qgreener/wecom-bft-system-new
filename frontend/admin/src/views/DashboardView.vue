@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
+import * as echarts from "echarts";
 import { useDashboardStore } from "@/stores/dashboard";
 import { formatCent, formatDateTime, formatNumber } from "@/utils/format";
 import { columnsForRoute } from "@/config/columns";
@@ -27,13 +28,31 @@ const dashboardCards = computed(() => {
   ];
 });
 
-const todayOrderCount = computed(() => {
-  const today = new Date().toISOString().slice(0, 10);
-  return String(recentOrders.value.filter((order) => String(order.created_at ?? "").startsWith(today)).length || "-");
+const trendDays = computed<string[]>(() => {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return date.toISOString().slice(5, 10);
+  });
 });
 
-const orderTrend = computed(() => buildTrend("count"));
-const revenueTrend = computed(() => buildTrend("amount"));
+const orderCounts = computed<number[]>(() =>
+  trendDays.value.map(
+    (day) => recentOrders.value.filter((order) => String(order.created_at ?? "").slice(5, 10) === day).length
+  )
+);
+
+const revenueYuan = computed<number[]>(() =>
+  trendDays.value.map((day) => {
+    const sumCent = recentOrders.value
+      .filter((order) => String(order.created_at ?? "").slice(5, 10) === day)
+      .reduce((sum, order) => {
+        const amount = Number(order.paid_amount_cent ?? order.payable_amount_cent ?? 0);
+        return sum + (Number.isFinite(amount) ? amount : 0);
+      }, 0);
+    return Number((sumCent / 100).toFixed(2));
+  })
+);
 
 const roleTabs = [
   { key: "SUPER_ADMIN", label: "超级管理员" },
@@ -47,87 +66,60 @@ const roleTabs = [
 const activeTodoGroups = computed(() => {
   const t = todos.value ?? {};
   const groups = [
-    {
-      roles: ["SUPER_ADMIN", "SERVICE"],
-      label: "待审核退款",
-      count: t.pending_refund_review_count,
-      samples: t.pending_refund_review_samples,
-      path: "/refunds"
-    },
-    {
-      roles: ["SUPER_ADMIN", "WAREHOUSE"],
-      label: "待发货订单",
-      count: t.pending_shipment_count,
-      samples: t.pending_shipment_samples,
-      path: "/shipments"
-    },
-    {
-      roles: ["SUPER_ADMIN", "SERVICE", "ACCOUNTING"],
-      label: "待开票申请",
-      count: t.pending_invoice_issue_count,
-      samples: t.pending_invoice_issue_samples,
-      path: "/invoices"
-    },
-    {
-      roles: ["SUPER_ADMIN", "ACCOUNTING"],
-      label: "待处理红冲",
-      count: t.pending_red_reverse_count,
-      samples: t.pending_red_reverse_samples,
-      path: "/invoices"
-    },
-    {
-      roles: ["SUPER_ADMIN", "ACCOUNTING"],
-      label: "对账差异",
-      count: t.pending_reconciliation_diff_count,
-      samples: t.pending_reconciliation_diff_samples,
-      path: "/reconciliation"
-    },
-    {
-      roles: ["SUPER_ADMIN", "WAREHOUSE"],
-      label: "采购审批",
-      count: t.pending_purchase_approval_count,
-      samples: t.pending_purchase_approval_samples,
-      path: "/purchases"
-    },
-    {
-      roles: ["OPS"],
-      label: "线索跟进",
-      count: null,
-      samples: [],
-      path: "/leads"
-    },
-    {
-      roles: ["EDU_ADMIN"],
-      label: "课程内容维护",
-      count: null,
-      samples: [],
-      path: "/courses"
-    }
+    { roles: ["SUPER_ADMIN", "SERVICE"], label: "待审核退款", count: t.pending_refund_review_count, samples: t.pending_refund_review_samples, path: "/refunds" },
+    { roles: ["SUPER_ADMIN", "WAREHOUSE"], label: "待发货订单", count: t.pending_shipment_count, samples: t.pending_shipment_samples, path: "/shipments" },
+    { roles: ["SUPER_ADMIN", "SERVICE", "ACCOUNTING"], label: "待开票申请", count: t.pending_invoice_issue_count, samples: t.pending_invoice_issue_samples, path: "/invoices" },
+    { roles: ["SUPER_ADMIN", "ACCOUNTING"], label: "待处理红冲", count: t.pending_red_reverse_count, samples: t.pending_red_reverse_samples, path: "/invoices" },
+    { roles: ["SUPER_ADMIN", "ACCOUNTING"], label: "对账差异", count: t.pending_reconciliation_diff_count, samples: t.pending_reconciliation_diff_samples, path: "/reconciliation" },
+    { roles: ["SUPER_ADMIN", "WAREHOUSE"], label: "采购审批", count: t.pending_purchase_approval_count, samples: t.pending_purchase_approval_samples, path: "/purchases" },
+    { roles: ["OPS"], label: "线索跟进", count: null, samples: [], path: "/leads" },
+    { roles: ["EDU_ADMIN"], label: "课程内容维护", count: null, samples: [], path: "/courses" }
   ];
   return groups.filter((group) => group.roles.includes(activeRole.value));
 });
 
-function buildTrend(mode: "count" | "amount") {
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - index));
-    return date.toISOString().slice(5, 10);
-  });
-  const values = days.map((day) => {
-    const rows = recentOrders.value.filter((order) => String(order.created_at ?? "").slice(5, 10) === day);
-    if (mode === "count") return rows.length;
-    return rows.reduce((sum, order) => {
-      const amount = Number(order.paid_amount_cent ?? order.payable_amount_cent ?? 0);
-      return sum + (Number.isFinite(amount) ? amount : 0);
-    }, 0);
-  });
-  const max = Math.max(...values, 1);
-  return days.map((day, index) => ({
-    day,
-    value: values[index],
-    height: `${Math.max(8, (values[index] / max) * 100)}%`
-  }));
+const orderChartEl = ref<HTMLDivElement | null>(null);
+const revenueChartEl = ref<HTMLDivElement | null>(null);
+let orderChart: echarts.ECharts | null = null;
+let revenueChart: echarts.ECharts | null = null;
+
+function renderCharts(): void {
+  if (orderChartEl.value) {
+    orderChart = orderChart ?? echarts.init(orderChartEl.value);
+    orderChart.setOption({
+      grid: { left: 36, right: 12, top: 24, bottom: 28 },
+      tooltip: { trigger: "axis" },
+      xAxis: { type: "category", data: trendDays.value, axisTick: { show: false } },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [{
+        type: "line",
+        smooth: true,
+        data: orderCounts.value,
+        symbolSize: 8,
+        lineStyle: { color: "#2563eb", width: 2 },
+        itemStyle: { color: "#2563eb" },
+        areaStyle: { color: "rgba(37, 99, 235, 0.12)" }
+      }]
+    });
+  }
+  if (revenueChartEl.value) {
+    revenueChart = revenueChart ?? echarts.init(revenueChartEl.value);
+    revenueChart.setOption({
+      grid: { left: 48, right: 12, top: 24, bottom: 28 },
+      tooltip: { trigger: "axis", valueFormatter: (v: number) => `¥ ${v.toFixed(2)}` },
+      xAxis: { type: "category", data: trendDays.value, axisTick: { show: false } },
+      yAxis: { type: "value", axisLabel: { formatter: "¥{value}" } },
+      series: [{
+        type: "bar",
+        data: revenueYuan.value,
+        barMaxWidth: 28,
+        itemStyle: { color: "#0d9488", borderRadius: [4, 4, 0, 0] }
+      }]
+    });
+  }
 }
+
+watch([orderCounts, revenueYuan], () => renderCharts(), { flush: "post" });
 
 function navigate(path: string): void {
   router.push(path);
@@ -137,9 +129,16 @@ function todoSamples(samples: unknown): Record<string, unknown>[] {
   return Array.isArray(samples) ? samples.slice(0, 4) as Record<string, unknown>[] : [];
 }
 
-onMounted(() => {
-  store.load();
+onMounted(async () => {
+  await store.load();
+  renderCharts();
+  window.addEventListener("resize", handleResize);
 });
+
+function handleResize(): void {
+  orderChart?.resize();
+  revenueChart?.resize();
+}
 </script>
 
 <template>
@@ -150,8 +149,8 @@ onMounted(() => {
       <p>以订单为核心，将线索、学员、支付、履约、退款、发票、对账和代账串成可追溯的财务协作链。</p>
     </div>
     <div class="hero-actions">
-      <button class="secondary" :disabled="loading" @click="store.load()">{{ loading ? "刷新中..." : "刷新" }}</button>
-      <button class="primary" @click="navigate('/reports')">看财税摘要</button>
+      <button class="ghost" :disabled="loading" @click="store.load()">{{ loading ? "刷新中" : "刷新" }}</button>
+      <button class="primary" @click="navigate('/reports')">财税摘要</button>
     </div>
   </section>
 
@@ -159,6 +158,24 @@ onMounted(() => {
     <article v-for="card in dashboardCards" :key="card.label" @click="navigate(card.path)">
       <p>{{ card.label }}</p>
       <strong>{{ card.value }}</strong>
+    </article>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="chart-panel">
+      <header>
+        <h3>近7日订单趋势</h3>
+        <span>按最近订单聚合</span>
+      </header>
+      <div ref="orderChartEl" class="echart-canvas"></div>
+    </article>
+
+    <article class="chart-panel">
+      <header>
+        <h3>近7日营收</h3>
+        <span>单位：元</span>
+      </header>
+      <div ref="revenueChartEl" class="echart-canvas"></div>
     </article>
   </section>
 
@@ -188,36 +205,6 @@ onMounted(() => {
     </div>
   </section>
 
-  <section class="dashboard-grid">
-    <article class="chart-panel">
-      <header>
-        <h3>近7日订单趋势</h3>
-        <span>按最近订单聚合</span>
-      </header>
-      <div class="bars">
-        <div v-for="bar in orderTrend" :key="bar.day" class="bar-col">
-          <i :style="{ height: bar.height }"></i>
-          <small>{{ bar.day }}</small>
-          <strong>{{ bar.value }}</strong>
-        </div>
-      </div>
-    </article>
-
-    <article class="chart-panel">
-      <header>
-        <h3>近7日营收</h3>
-        <span>单位：元</span>
-      </header>
-      <div class="bars revenue">
-        <div v-for="bar in revenueTrend" :key="bar.day" class="bar-col">
-          <i :style="{ height: bar.height }"></i>
-          <small>{{ bar.day }}</small>
-          <strong>{{ formatCent(bar.value).replace('.00', '') }}</strong>
-        </div>
-      </div>
-    </article>
-  </section>
-
   <section class="list-section">
     <div class="section-title">
       <h3>最近订单</h3>
@@ -230,3 +217,21 @@ onMounted(() => {
     <p>{{ error }}</p>
   </section>
 </template>
+
+<style scoped>
+.echart-canvas {
+  width: 100%;
+  height: 240px;
+}
+.dashboard-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+.hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+</style>

@@ -26,7 +26,9 @@ const componentForRoute = (key: RouteKey): AdminRouteComponent => {
     taxRules: () => import("@/views/finance/TaxRulesView.vue"),
     logisticsConfig: () => import("@/views/system/LogisticsConfigView.vue"),
     settings: () => import("@/views/system/SettingsView.vue"),
-    audit: () => import("@/views/system/AuditView.vue")
+    audit: () => import("@/views/system/AuditView.vue"),
+    promotionCodes: () => import("@/views/crm/PromotionCodesView.vue"),
+    accountManagement: () => import("@/views/system/AccountManagementView.vue")
   };
   return components[key];
 };

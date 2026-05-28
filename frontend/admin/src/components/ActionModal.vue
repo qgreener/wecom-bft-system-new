@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useActionStore } from "@/stores/action";
-import { ACTION_FIELD_DEFS, ACTION_LABELS } from "@/config/actions";
+import { ACTION_FIELD_DEFS, ACTION_LABELS, type ActionFieldDef } from "@/config/actions";
+import { request } from "@/services/http";
 
 const emit = defineEmits<{ (e: "submitted"): void }>();
 
@@ -11,6 +12,49 @@ const { actionType, actionLoading, actionError, actionForm } = storeToRefs(actio
 
 const successMessage = ref("");
 const successLink = ref("");
+const remoteOptions = ref<Record<string, { label: string; value: string }[]>>({});
+const remoteLoading = ref<Record<string, boolean>>({});
+
+watch(actionType, async (type) => {
+  remoteOptions.value = {};
+  remoteLoading.value = {};
+  if (!type) return;
+  const fields = fieldsFor(type);
+  for (const field of fields) {
+    if (field.type === "remoteSelect" && field.remote) {
+      void loadRemote(field);
+    }
+  }
+});
+
+async function loadRemote(field: ActionFieldDef): Promise<void> {
+  if (!field.remote) return;
+  remoteLoading.value = { ...remoteLoading.value, [field.key]: true };
+  try {
+    const data = await request<unknown>(field.remote.url);
+    const list = extractList(data);
+    const opts = list.map((item) => ({
+      value: String((item as Record<string, unknown>)[field.remote!.valueKey] ?? ""),
+      label: String((item as Record<string, unknown>)[field.remote!.labelKey] ?? "")
+    })).filter((o) => o.value && o.label);
+    remoteOptions.value = { ...remoteOptions.value, [field.key]: opts };
+  } catch {
+    remoteOptions.value = { ...remoteOptions.value, [field.key]: [] };
+  } finally {
+    remoteLoading.value = { ...remoteLoading.value, [field.key]: false };
+  }
+}
+
+function extractList(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.records)) return obj.records;
+    if (Array.isArray(obj.list)) return obj.list;
+    if (Array.isArray(obj.items)) return obj.items;
+  }
+  return [];
+}
 
 async function onSubmit(): Promise<void> {
   successMessage.value = "";
@@ -61,7 +105,6 @@ function fieldsFor(type: string) {
 function onFileChange(key: string, event: Event): void {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  // actionForm 类型是 Record<string, any>，可直接赋值 File 对象，buildFormData 会识别并走 multipart
   (actionForm.value as Record<string, unknown>)[key] = file;
 }
 </script>
@@ -80,6 +123,12 @@ function onFileChange(key: string, event: Event): void {
             <option value="">请选择</option>
             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">
               {{ option.label }}
+            </option>
+          </select>
+          <select v-else-if="field.type === 'remoteSelect'" v-model="actionForm[field.key]">
+            <option value="">{{ remoteLoading[field.key] ? "加载中..." : "请选择" }}</option>
+            <option v-for="option in remoteOptions[field.key] ?? []" :key="option.value" :value="option.value">
+              {{ option.label }}（#{{ option.value }}）
             </option>
           </select>
           <textarea

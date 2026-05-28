@@ -3,11 +3,13 @@ import type { RouteKey } from "@/router/routes";
 export interface ActionFieldDef {
   key: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file";
+  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file" | "remoteSelect";
   placeholder?: string;
   options?: { label: string; value: string }[];
   required?: boolean;
   accept?: string;
+  /** 用于 remoteSelect：拉取选项的 API 路径；返回数据中按 valueKey/labelKey 取值 */
+  remote?: { url: string; valueKey: string; labelKey: string };
 }
 
 export interface ActionBinding {
@@ -261,13 +263,15 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
       { label: "直播课", value: "LIVE" },
       { label: "录制课", value: "RECORDED" }
     ], required: true },
-    { key: "cover_url", label: "封面 URL" },
+    { key: "cover_url", label: "封面 URL", placeholder: "图片地址；课程编辑页支持上传" },
     { key: "summary", label: "课程摘要", type: "textarea" },
     { key: "detail", label: "课程详情", type: "textarea" },
-    { key: "teacher_user_id", label: "负责讲师 ID", type: "number" },
+    { key: "teacher_user_id", label: "负责讲师", type: "remoteSelect",
+      remote: { url: "/api/admin/system/admin-users?status=ACTIVE", valueKey: "id", labelKey: "display_name" } },
     { key: "category_code", label: "课程类目" },
     { key: "course_group_qr", label: "入群二维码文件号" },
-    { key: "default_tax_rule_id", label: "默认税务规则 ID", type: "number" }
+    { key: "default_tax_rule_id", label: "默认税务规则", type: "remoteSelect",
+      remote: { url: "/api/admin/tax-rules", valueKey: "rule_id", labelKey: "rule_name" } }
   ],
   courseSpecSave: [
     { key: "spec_name", label: "规格名", required: true },
@@ -275,8 +279,10 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "origin_price_cent", label: "原价(分)", type: "number" },
     { key: "stock_mode", label: "库存模式" },
     { key: "contains_physical", label: "包含实物", type: "checkbox" },
-    { key: "sku_id", label: "SKU ID", type: "number" },
-    { key: "gift_sku_id", label: "赠品 SKU ID", type: "number" },
+    { key: "sku_id", label: "实物 SKU", type: "remoteSelect",
+      remote: { url: "/api/admin/inventory/skus", valueKey: "sku_id", labelKey: "sku_name" } },
+    { key: "gift_sku_id", label: "赠品 SKU", type: "remoteSelect",
+      remote: { url: "/api/admin/inventory/skus", valueKey: "sku_id", labelKey: "sku_name" } },
     { key: "tax_rule_id", label: "税务规则 ID", type: "number" },
     { key: "amount_split_snapshot", label: "金额拆分 JSON", type: "json" },
     { key: "status", label: "状态", type: "select", options: [
@@ -330,7 +336,8 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "image_url", label: "图片 URL" }
   ],
   stockFlowCreate: [
-    { key: "sku_id", label: "SKU ID", type: "number", required: true },
+    { key: "sku_id", label: "SKU", type: "remoteSelect", required: true,
+      remote: { url: "/api/admin/inventory/skus", valueKey: "sku_id", labelKey: "sku_name" } },
     { key: "direction", label: "方向", type: "select", options: [
       { label: "入库", value: "IN" },
       { label: "出库", value: "OUT" }
@@ -342,8 +349,10 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
     { key: "remark", label: "备注", type: "textarea" }
   ],
   purchaseCreate: [
-    { key: "supplier_id", label: "供货商 ID", type: "number", required: true },
-    { key: "purchase_items_json", label: "商品明细 JSON", type: "json", placeholder: "[{\"sku_id\":1,\"quantity\":10,\"unit_price_cent\":1000}]", required: true },
+    { key: "supplier_id", label: "供货商", type: "remoteSelect", required: true,
+      remote: { url: "/api/admin/suppliers", valueKey: "supplier_id", labelKey: "supplier_name" } },
+    { key: "purchase_items_json", label: "商品明细", type: "json",
+      placeholder: "[{\"sku_id\":1,\"quantity\":10,\"unit_price_cent\":1000}]", required: true },
     { key: "submit_reason", label: "采购原因", type: "textarea" },
     { key: "expected_arrival_date", label: "预计到货日期", type: "date" }
   ],
@@ -426,7 +435,6 @@ export const ROUTE_ACTIONS: Partial<Record<RouteKey, RouteAction[]>> = {
     { type: "leadCreate", label: "新建线索" },
     { type: "promotionCodeCreate", label: "生成推广码" },
     { type: "leadFollow", label: "跟进" },
-    { type: "leadConvert", label: "确认转化" },
     { type: "leadAbandon", label: "放弃" }
   ],
   courses: [
@@ -468,7 +476,9 @@ export const NO_ID_ACTIONS: ReadonlySet<ActionType> = new Set<ActionType>([
 
 export const RECORD_ID_FIELDS: readonly string[] = [
   "id", "shipment_id", "refund_id", "invoice_id", "batch_id", "material_id",
-  "order_id", "purchase_id", "approval_id", "reconciliation_id", "supplier_id", "rule_id"
+  "order_id", "purchase_id", "approval_id", "reconciliation_id", "supplier_id", "rule_id",
+  "lead_id", "student_id", "course_id", "entitlement_id", "payment_id", "sku_id",
+  "user_id", "audit_log_id", "config_key", "promotion_code_id"
 ];
 
 export function actionsForRoute(routeKey: RouteKey): RouteAction[] {

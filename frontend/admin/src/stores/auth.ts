@@ -81,6 +81,17 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function loadMyPendingRoleApp(): Promise<void> {
+    try {
+      const data = await request<AnyRecord | null>("/api/admin/role-applications/me/pending");
+      if (data && data.approval_no) {
+        roleAppSubmitted.value = true;
+      }
+    } catch {
+      // 静默：拿不到时认为没有 pending，照常显示表单
+    }
+  }
+
   const permissionSet = computed(
     () => new Set((currentUser.value?.permission_codes as string[]) ?? [])
   );
@@ -132,6 +143,7 @@ export const useAuthStore = defineStore("auth", () => {
     login,
     logout,
     submitRoleApplication,
+    loadMyPendingRoleApp,
     permissionSet,
     menuSet,
     hasNoRoles,

@@ -18,7 +18,9 @@ export type RouteKey =
   | "taxRules"
   | "logisticsConfig"
   | "settings"
-  | "audit";
+  | "audit"
+  | "promotionCodes"
+  | "accountManagement";
 
 export type AdminRoute = {
   key: RouteKey;
@@ -271,5 +273,25 @@ export const routeRegistry: AdminRoute[] = [
     permissionCodes: ["system:audit:read"],
     listPath: "/api/admin/audit/logs",
     idFields: ["audit_log_id", "id"]
+  },
+  {
+    key: "promotionCodes",
+    path: "/promotion-codes",
+    title: "推广码管理",
+    group: "crm",
+    menuCodes: ["system.promotion-codes", "crm.leads"],
+    permissionCodes: ["crm:lead:read", "crm:lead:write"],
+    listPath: "/api/admin/promotion-codes",
+    idFields: ["id", "promotion_code_id"]
+  },
+  {
+    key: "accountManagement",
+    path: "/account-management",
+    title: "账号与角色",
+    group: "system",
+    menuCodes: ["system.account-management"],
+    permissionCodes: ["iam:user:read", "iam:role-grant"],
+    listPath: "/api/admin/system/admin-users",
+    idFields: ["id", "user_id"]
   }
 ];

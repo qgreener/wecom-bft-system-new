@@ -181,10 +181,11 @@ button:disabled {
 }
 
 .admin-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
   background: var(--bg);
+  overflow: hidden;
 }
 
 .sidebar {
@@ -193,6 +194,13 @@ button:disabled {
   padding: 18px 12px;
   overflow-y: auto;
   border-right: 1px solid #24333d;
+  height: 100vh;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-head {
@@ -300,6 +308,14 @@ button:disabled {
 .workspace {
   min-width: 0;
   padding: 18px 22px 28px;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workspace::-webkit-scrollbar {
+  display: none;
 }
 
 .topbar,
@@ -706,7 +722,7 @@ td > span:not(.status-tag) {
 
 .drawer-desc {
   display: grid;
-  grid-template-columns: 130px minmax(0, 1fr);
+  grid-template-columns: 140px minmax(0, 1fr);
   margin: 0;
 }
 
@@ -715,16 +731,21 @@ td > span:not(.status-tag) {
   margin: 0;
   padding: 9px 11px;
   border-bottom: 1px solid #edf1f5;
+  min-width: 0;
 }
 
 .drawer-desc dt {
   color: #66758a;
   background: #fbfcfd;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .drawer-desc dd {
   overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .drawer-desc dt:nth-last-child(2),
