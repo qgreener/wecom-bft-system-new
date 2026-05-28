@@ -1,6 +1,22 @@
 <view class="page">
-  <view class="card gap">
-    <view class="h2 section">接口缺口</view>
-    <view class="subtle">{{message}}</view>
+  <view wx:if="{{loading}}" class="subtle">加载中…</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{!items.length}}" class="subtle line">暂无通知</view>
+  <view wx:else>
+    <view
+      wx:for="{{items}}"
+      wx:key="id"
+      class="card gap notice-item"
+      bindtap="onItemTap"
+      data-id="{{item.id}}"
+      data-index="{{index}}"
+    >
+      <view class="notice-head">
+        <view class="h2">{{item.title}}</view>
+        <view wx:if="{{item.read_status !== 'READ'}}" class="dot">●</view>
+      </view>
+      <view class="subtle section">{{item.content}}</view>
+      <view class="subtle small">{{item.created_at}}</view>
+    </view>
   </view>
 </view>

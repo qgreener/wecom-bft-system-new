@@ -206,15 +206,18 @@ export type Entitlement = {
 };
 
 export type NotificationItem = {
-  notification_id: number;
+  notification_id?: number;
+  id?: number;
   notification_no: string;
   channel: string;
   scene_code: string;
   title: string;
   content: string;
   send_status: string;
-  read_status: string;
+  read_status?: string;
   sent_at?: string | null;
+  created_at?: string | null;
+  order_id?: number | null;
 };
 
 export type OrderDetail = OrderListItem & {
@@ -248,6 +251,20 @@ export type RefundResponse = {
   failure_reason?: string | null;
   entitlement_action?: string | null;
   refunded_at?: string | null;
+};
+
+export type AppAddress = {
+  id: number;
+  student_id: number;
+  receiver_name: string;
+  receiver_mobile: string;
+  province: string;
+  city: string;
+  district: string;
+  detail_address: string;
+  postal_code?: string | null;
+  is_default: boolean;
+  status: string;
 };
 
 export type InvoiceTitle = {
