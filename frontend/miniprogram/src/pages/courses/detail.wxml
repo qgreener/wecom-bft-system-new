@@ -25,7 +25,8 @@
 
     <view class="card">
       <view class="h2 section">课程详情</view>
-      <view class="subtle">{{detail.detail || '暂无详情'}}</view>
+      <rich-text wx:if="{{detail.detail}}" nodes="{{detail.detail}}" class="rich-detail" />
+      <view wx:else class="subtle">暂无详情</view>
     </view>
 
     <view class="card">

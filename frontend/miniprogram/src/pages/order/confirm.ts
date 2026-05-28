@@ -1,4 +1,4 @@
-import { confirmOrder, createOrder, payWithBackendMock } from "../../services/app-api";
+import { confirmOrder, createOrder, fetchAddresses, payWithBackendMock } from "../../services/app-api";
 import { canCreateOrder } from "../../services/order-actions";
 import { getStoredSession } from "../../stores/session";
 import type { OrderConfirmResponse } from "../../types/api";
@@ -27,7 +27,8 @@ Page({
     courseId: 0,
     specId: 0,
     quantity: 1,
-    addressId: null,
+    addressId: null as number | null,
+    pickedAddressId: null as number | null,
     confirm: null,
     loggedIn: false,
     mobileBound: false
@@ -39,6 +40,15 @@ Page({
     const addressId = optionNumber(options, "address_id") || null;
     this.setData({ courseId, specId, addressId });
     void this.load();
+  },
+
+  async onShow(this: MiniPageThis) {
+    // 从 address/list?mode=picker 选地址回来后，setData 注入了 pickedAddressId
+    const picked = this.data?.pickedAddressId;
+    if (picked && picked !== this.data?.addressId) {
+      this.setData({ addressId: picked, pickedAddressId: null });
+      await this.load();
+    }
   },
 
   async load(this: MiniPageThis) {
@@ -53,11 +63,25 @@ Page({
     }
     this.setData({ loading: true });
     try {
+      // 第一次拉确认时，若 addressId 为空，先尝试取默认地址
+      let addressId = this.data?.addressId as number | null;
+      if (!addressId) {
+        try {
+          const list = await fetchAddresses();
+          const defaultOne = list.find((a) => a.is_default) ?? list[0];
+          if (defaultOne) {
+            addressId = defaultOne.id;
+            this.setData({ addressId });
+          }
+        } catch {
+          // 拉地址失败不阻塞，让用户手动选
+        }
+      }
       const confirm = await confirmOrder({
         course_id: Number(this.data?.courseId),
         spec_id: Number(this.data?.specId),
         quantity: Number(this.data?.quantity ?? 1),
-        address_id: this.data?.addressId as number | null,
+        address_id: addressId,
         source_code: "S9_MP"
       });
       this.setData({ loading: false, confirm: toView(confirm) });
@@ -71,7 +95,7 @@ Page({
   },
 
   address() {
-    go("/pages/address/list");
+    go("/pages/address/list?mode=picker");
   },
 
   async submit(this: MiniPageThis) {

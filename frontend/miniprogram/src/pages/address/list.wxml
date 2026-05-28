@@ -11,6 +11,7 @@
       </view>
       <view class="subtle section">{{item.province}}{{item.city}}{{item.district}} {{item.detail_address}}</view>
       <view class="row">
+        <view wx:if="{{pickMode}}" class="btn" data-id="{{item.id}}" bindtap="pick">使用此地址</view>
         <view class="btn secondary" data-id="{{item.id}}" bindtap="edit">编辑</view>
         <view class="btn ghost" data-id="{{item.id}}" bindtap="remove">删除</view>
       </view>
