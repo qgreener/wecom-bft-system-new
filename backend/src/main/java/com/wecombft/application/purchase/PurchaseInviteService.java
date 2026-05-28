@@ -86,7 +86,7 @@ public class PurchaseInviteService {
             select p.purchase_no, s.supplier_no
             from purchase_order p
             left join supplier s on s.id = p.supplier_id
-            where p.id = ? and p.deleted_flag = 0
+            where p.id = ?
             """,
             rs -> {
                 if (!rs.next()) {
