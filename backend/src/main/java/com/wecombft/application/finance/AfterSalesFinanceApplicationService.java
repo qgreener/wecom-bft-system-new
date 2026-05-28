@@ -765,7 +765,28 @@ public class AfterSalesFinanceApplicationService {
         upsertDocumentLink(order, "INVOICE", invoiceId, command.invoiceNo(), "ISSUED", invoice.invoiceAmountCent(), "INVOICE_ISSUE", "tax_invoice", "人工开票", principal.userId());
         auditLogService.writeSuccess(principal, "INVOICE", "INVOICE_ISSUE", "TAX_INVOICE", invoice.id(), command.invoiceNo(), invoice.orderId(), "{\"status\":\"ISSUED\"}");
         sendInvoiceMailIfPossible(invoice, command.invoiceNo(), command.invoiceFile());
+        notifyStudentInvoiceIssued(invoice, command.invoiceNo());
         return toInvoiceResponse(requireInvoice(invoiceId));
+    }
+
+    private void notifyStudentInvoiceIssued(InvoiceRow invoice, String invoiceNo) {
+        com.wecombft.application.notification.NotificationContent content =
+            new com.wecombft.application.notification.NotificationContent(
+                "INVOICE_ISSUED",
+                "INVOICE_ISSUED_NOTICE",
+                "发票开具成功",
+                "您的订单 " + invoice.orderNo() + " 发票已开具，发票号码：" + (invoiceNo == null ? "-" : invoiceNo)
+                    + "。请到「我的-发票信息」查看，或在邮箱接收 PDF。",
+                "TAX_INVOICE",
+                invoice.id(),
+                "INVOICE_ISSUED:" + invoice.id(),
+                null,
+                "/pages/order/detail?order_id=" + invoice.orderId());
+        try {
+            notificationDispatchService.dispatchToStudent(invoice.studentId(), content);
+        } catch (RuntimeException e) {
+            // 通知失败不影响开票主流程
+        }
     }
 
     private void sendInvoiceMailIfPossible(InvoiceRow invoice, String invoiceNo, String invoiceFile) {
@@ -816,7 +837,28 @@ public class AfterSalesFinanceApplicationService {
         jdbcTemplate.update("update trade_order set invoice_status = 'RED_REVERSED', updated_by = ?, version = version + 1 where id = ?", principal.userId(), invoice.orderId());
         upsertDocumentLink(requireOrder(invoice.orderId()), "RED_REVERSAL", invoiceId, command.redInvoiceNo(), "RED_REVERSED", invoice.invoiceAmountCent(), "INVOICE_RED_REVERSE", "tax_invoice", "发票红冲", principal.userId());
         auditLogService.writeSuccess(principal, "INVOICE", "INVOICE_RED_REVERSE", "TAX_INVOICE", invoice.id(), command.redInvoiceNo(), invoice.orderId(), "{\"status\":\"RED_REVERSED\"}");
+        notifyStudentInvoiceRedReversed(invoice, command.redInvoiceNo());
         return toInvoiceResponse(requireInvoice(invoiceId));
+    }
+
+    private void notifyStudentInvoiceRedReversed(InvoiceRow invoice, String redInvoiceNo) {
+        com.wecombft.application.notification.NotificationContent content =
+            new com.wecombft.application.notification.NotificationContent(
+                "INVOICE_RED_REVERSED",
+                "INVOICE_RED_REVERSED_NOTICE",
+                "发票已红冲",
+                "您的订单 " + invoice.orderNo() + " 原发票已红冲，红字发票号：" + (redInvoiceNo == null ? "-" : redInvoiceNo)
+                    + "。如需重新开票请联系客服。",
+                "TAX_INVOICE",
+                invoice.id(),
+                "INVOICE_RED_REVERSED:" + invoice.id(),
+                null,
+                "/pages/order/detail?order_id=" + invoice.orderId());
+        try {
+            notificationDispatchService.dispatchToStudent(invoice.studentId(), content);
+        } catch (RuntimeException e) {
+            // 通知失败不影响红冲主流程
+        }
     }
 
     @Transactional
