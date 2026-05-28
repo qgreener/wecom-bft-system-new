@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { healthEndpoint, surfaces } from "@wecom-bft/shared";
 
 type ApiEnvelope<T> = {
@@ -18,18 +18,42 @@ type LeadResponse = {
   source_channel?: string;
 };
 
+type JsapiSignaturePayload = {
+  corp_id: string;
+  agent_id: string;
+  timestamp: number;
+  nonce_str: string;
+  url: string;
+  wx_config_signature: string;
+  agent_config_signature: string;
+};
+
+declare global {
+  interface Window {
+    wx?: any;
+    WWOpenData?: any;
+  }
+}
+
 const surface = surfaces.wecomSidebar;
 const token = ref(localStorage.getItem("wecom_sidebar_token") ?? "");
+
+// 企微 JS-SDK 状态
+const jssdkStatus = ref<"idle" | "loading" | "ready" | "fallback" | "error">("idle");
+const jssdkError = ref("");
+const externalUserId = ref("");
+const externalUserName = ref("");
+
 const lead = reactive({
-  name: "企微客户",
-  mobile: "13970000002",
-  sourceCode: "WECOM-SIDEBAR-DEMO",
-  intentCourseId: "2000000000000000301",
-  remark: "侧边栏录入：客户关注财务实操课和发票处理。"
+  name: "",
+  mobile: "",
+  sourceCode: "WECOM-SIDEBAR",
+  intentCourseId: "",
+  remark: ""
 });
 const follow = reactive({
   leadId: "",
-  content: "已确认试听意向，提醒小程序完成课程下单。",
+  content: "",
   nextFollowAt: ""
 });
 const busy = ref("");
@@ -37,12 +61,13 @@ const error = ref("");
 const message = ref("");
 const latestLead = ref<LeadResponse | null>(null);
 
+const isInWeCom = computed(() => /wxwork/i.test(navigator.userAgent));
 const canCreate = computed(() => token.value.trim() && /^1\d{10}$/.test(lead.mobile.trim()));
 const canFollow = computed(() => token.value.trim() && follow.leadId.trim() && follow.content.trim());
 
 function saveToken(): void {
   localStorage.setItem("wecom_sidebar_token", token.value.trim());
-  message.value = "已保存当前企微演示登录态";
+  message.value = "已保存当前演示登录态";
   error.value = "";
 }
 
@@ -53,7 +78,9 @@ function idempotencyKey(scope: string): string {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token.value.trim()) {
     headers.set("Authorization", `Bearer ${token.value.trim()}`);
   }
@@ -65,21 +92,138 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return envelope.data;
 }
 
+// 动态加载企微 JS-SDK 脚本
+function loadWecomJsSdk(): Promise<void> {
+  if (window.wx && typeof window.wx.config === "function" && typeof window.wx.agentConfig === "function") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://res.wx.qq.com/open/js/jweixin-1.2.0.js";
+    script.onload = () => {
+      const extra = document.createElement("script");
+      extra.src = "https://wwcdn.weixin.qq.com/node/open/js/wwLogin-1.2.7.js";
+      extra.onload = () => resolve();
+      extra.onerror = () => resolve();   // wwLogin 失败不影响 wx.config
+      document.head.appendChild(extra);
+    };
+    script.onerror = () => reject(new Error("加载企微 JS-SDK 脚本失败"));
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchSignature(): Promise<JsapiSignaturePayload> {
+  const url = window.location.href.split("#")[0];
+  const data = await fetch(`/api/h5/wecom/jsapi-signature?url=${encodeURIComponent(url)}`)
+    .then((r) => r.json()) as ApiEnvelope<JsapiSignaturePayload>;
+  if (!["OK", "CREATED"].includes(data.code)) {
+    throw new Error(data.message || "签名接口异常");
+  }
+  return data.data;
+}
+
+function callWxConfig(payload: JsapiSignaturePayload): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const wx = window.wx;
+    if (!wx) {
+      reject(new Error("wx not available"));
+      return;
+    }
+    wx.config({
+      beta: true,
+      debug: false,
+      appId: payload.corp_id,
+      timestamp: payload.timestamp,
+      nonceStr: payload.nonce_str,
+      signature: payload.wx_config_signature,
+      jsApiList: ["agentConfig"]
+    });
+    wx.ready(() => resolve());
+    wx.error((err: { errMsg?: string }) => reject(new Error(err.errMsg || "wx.config error")));
+  });
+}
+
+function callAgentConfig(payload: JsapiSignaturePayload): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const wx = window.wx;
+    if (!wx || typeof wx.agentConfig !== "function") {
+      reject(new Error("wx.agentConfig not available"));
+      return;
+    }
+    wx.agentConfig({
+      corpid: payload.corp_id,
+      agentid: payload.agent_id,
+      timestamp: payload.timestamp,
+      nonceStr: payload.nonce_str,
+      signature: payload.agent_config_signature,
+      jsApiList: ["getCurExternalContact"],
+      success: () => resolve(),
+      fail: (err: { errMsg?: string }) => reject(new Error(err.errMsg || "wx.agentConfig error"))
+    });
+  });
+}
+
+function callGetCurExternalContact(): Promise<{ userId: string; name?: string }> {
+  return new Promise((resolve, reject) => {
+    const wx = window.wx;
+    if (!wx || typeof wx.invoke !== "function") {
+      reject(new Error("wx.invoke not available"));
+      return;
+    }
+    wx.invoke("getCurExternalContact", {}, (res: { err_msg?: string; userId?: string; name?: string }) => {
+      if (res && /ok$/.test(res.err_msg ?? "")) {
+        resolve({ userId: res.userId ?? "", name: res.name });
+      } else {
+        reject(new Error(res?.err_msg || "getCurExternalContact failed"));
+      }
+    });
+  });
+}
+
+async function bootstrapWecom(): Promise<void> {
+  if (!isInWeCom.value) {
+    jssdkStatus.value = "fallback";
+    return;
+  }
+  jssdkStatus.value = "loading";
+  jssdkError.value = "";
+  try {
+    await loadWecomJsSdk();
+    const sign = await fetchSignature();
+    await callWxConfig(sign);
+    await callAgentConfig(sign);
+    const contact = await callGetCurExternalContact();
+    externalUserId.value = contact.userId;
+    externalUserName.value = contact.name ?? "";
+    if (contact.name) {
+      lead.name = contact.name;
+    }
+    jssdkStatus.value = "ready";
+  } catch (e) {
+    jssdkStatus.value = "error";
+    jssdkError.value = e instanceof Error ? e.message : String(e);
+  }
+}
+
 async function createLead(): Promise<void> {
   busy.value = "create";
   error.value = "";
   message.value = "";
   try {
+    const payload: Record<string, unknown> = {
+      name: lead.name.trim(),
+      mobile: lead.mobile.trim(),
+      source_channel: "WECOM_SIDEBAR",
+      source_code: lead.sourceCode.trim(),
+      intent_course_id: lead.intentCourseId ? Number(lead.intentCourseId) : null,
+      remark: lead.remark.trim()
+    };
+    if (externalUserId.value) {
+      payload.wecom_external_user_id = externalUserId.value;
+    }
     const data = await request<LeadResponse>("/api/wecom/sidebar/leads", {
       method: "POST",
-      body: JSON.stringify({
-        name: lead.name.trim(),
-        mobile: lead.mobile.trim(),
-        source_channel: "WECOM_SIDEBAR",
-        source_code: lead.sourceCode.trim(),
-        intent_course_id: lead.intentCourseId ? Number(lead.intentCourseId) : null,
-        remark: lead.remark.trim()
-      })
+      body: JSON.stringify(payload)
     });
     latestLead.value = data;
     follow.leadId = String(data.lead_id ?? "");
@@ -112,6 +256,8 @@ async function addFollow(): Promise<void> {
     busy.value = "";
   }
 }
+
+onMounted(() => { void bootstrapWecom(); });
 </script>
 
 <template>
@@ -126,10 +272,29 @@ async function addFollow(): Promise<void> {
       </dl>
     </section>
 
+    <section class="panel jssdk-panel" :class="jssdkStatus">
+      <header>
+        <strong>企微 JS-SDK 上下文</strong>
+        <span v-if="jssdkStatus === 'ready'">已识别外部联系人</span>
+        <span v-else-if="jssdkStatus === 'loading'">连接中…</span>
+        <span v-else-if="jssdkStatus === 'fallback'">非企微环境，按手贴 token 演示</span>
+        <span v-else-if="jssdkStatus === 'error'">JS-SDK 异常</span>
+      </header>
+      <p v-if="jssdkStatus === 'ready'" class="muted">
+        external_userid =
+        <code>{{ externalUserId }}</code>
+        <span v-if="externalUserName"> &nbsp; 昵称：{{ externalUserName }}</span>
+      </p>
+      <p v-else-if="jssdkStatus === 'error'" class="error">{{ jssdkError }}</p>
+      <p v-else-if="jssdkStatus === 'fallback'" class="muted">
+        在企微 App 内打开聊天工具栏可自动识别当前客户，本浏览器仅做演示和兜底。
+      </p>
+    </section>
+
     <section class="panel auth-panel">
       <label>
         <span>管理端访问令牌</span>
-        <input v-model="token" placeholder="Bearer token，演示时可用 DEMO_OPS 登录后复制" />
+        <input v-model="token" placeholder="Bearer token（演示时复制超管登录后的 admin_access_token）" />
       </label>
       <button type="button" class="secondary" @click="saveToken">保存</button>
     </section>
@@ -137,7 +302,8 @@ async function addFollow(): Promise<void> {
     <section class="panel">
       <header>
         <strong>录入线索</strong>
-        <span>正式接口</span>
+        <span v-if="externalUserId">将自动绑定 external_userid</span>
+        <span v-else>正式接口</span>
       </header>
       <div class="grid-form">
         <label><span>姓名</span><input v-model="lead.name" /></label>
@@ -182,3 +348,36 @@ async function addFollow(): Promise<void> {
     </section>
   </main>
 </template>
+
+<style scoped>
+.jssdk-panel {
+  border-left: 4px solid #cbd5e1;
+}
+.jssdk-panel.ready {
+  border-left-color: #15803d;
+}
+.jssdk-panel.error {
+  border-left-color: #b91c1c;
+}
+.jssdk-panel.fallback {
+  border-left-color: #b54708;
+}
+.jssdk-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.jssdk-panel code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+.muted {
+  color: #687782;
+  font-size: 13px;
+}
+.error {
+  color: #b42318;
+  font-size: 13px;
+}
+</style>

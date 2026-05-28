@@ -33,5 +33,9 @@ COPY --from=build /workspace/frontend/h5/lead/dist /usr/share/nginx/html/h5/lead
 COPY --from=build /workspace/frontend/h5/supplier/dist /usr/share/nginx/html/h5/supplier
 COPY --from=build /workspace/frontend/h5/wecom-sidebar/dist /usr/share/nginx/html/h5/wecom-sidebar
 
+# 微信/企微域名校验文件（可选）：把 WW_verify_xxx.txt 放到 deploy/nginx/verify/
+# 该目录如不存在则什么都不会拷贝，nginx 路由会 404 不影响其他流量
+COPY deploy/nginx/verify/ /usr/share/nginx/html/verify/
+
 # 默认 nginx 配置由 docker-compose volume mount 注入
 EXPOSE 80 443
