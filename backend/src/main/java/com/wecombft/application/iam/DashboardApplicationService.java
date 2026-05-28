@@ -49,6 +49,10 @@ public class DashboardApplicationService {
         long reconCount = visibleCount(roles, PENDING_RECONCILIATION_DIFF, counts);
         long purchaseCount = visibleCount(roles, PENDING_PURCHASE_APPROVAL, counts);
 
+        long todayLeads = countTodayLeads();
+        long todayOrders = countTodayOrders();
+        long stockWarning = countStockWarning();
+
         return new DashboardTodosResponse(
             refundCount,
             shipmentCount,
@@ -56,6 +60,9 @@ public class DashboardApplicationService {
             redReverseCount,
             reconCount,
             purchaseCount,
+            todayLeads,
+            todayOrders,
+            stockWarning,
             refundCount > 0 ? sampleRefundReviews() : List.of(),
             shipmentCount > 0 ? sampleShipments() : List.of(),
             invoiceCount > 0 ? sampleInvoiceIssues() : List.of(),
@@ -63,6 +70,27 @@ public class DashboardApplicationService {
             reconCount > 0 ? sampleReconciliationDiffs() : List.of(),
             purchaseCount > 0 ? samplePurchaseApprovals() : List.of()
         );
+    }
+
+    private long countTodayLeads() {
+        Long cnt = jdbcTemplate.queryForObject(
+            "select count(*) from crm_lead where date(created_at) = curdate()",
+            Long.class);
+        return cnt == null ? 0L : cnt;
+    }
+
+    private long countTodayOrders() {
+        Long cnt = jdbcTemplate.queryForObject(
+            "select count(*) from trade_order where date(created_at) = curdate()",
+            Long.class);
+        return cnt == null ? 0L : cnt;
+    }
+
+    private long countStockWarning() {
+        Long cnt = jdbcTemplate.queryForObject(
+            "select count(*) from inventory_sku where available_stock <= safety_stock and deleted_flag = 0 and status = 'ACTIVE'",
+            Long.class);
+        return cnt == null ? 0L : cnt;
     }
 
     private Map<String, Long> aggregatedCounts() {

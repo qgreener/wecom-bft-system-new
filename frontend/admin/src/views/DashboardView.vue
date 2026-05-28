@@ -18,12 +18,12 @@ const orderColumns = computed(() => columnsForRoute("orders"));
 const dashboardCards = computed(() => {
   const t = todos.value ?? {};
   return [
-    { label: "今日新增线索", value: "-", path: "/leads" },
-    { label: "今日新增订单", value: todayOrderCount.value, path: "/orders" },
+    { label: "今日新增线索", value: formatNumber(t.today_new_leads_count), path: "/leads" },
+    { label: "今日新增订单", value: formatNumber(t.today_new_orders_count), path: "/orders" },
     { label: "待处理退款", value: formatNumber(t.pending_refund_review_count), path: "/refunds" },
     { label: "待发货订单", value: formatNumber(t.pending_shipment_count), path: "/shipments" },
     { label: "待开票申请", value: formatNumber(t.pending_invoice_issue_count), path: "/invoices" },
-    { label: "库存预警数", value: "-", path: "/inventory" }
+    { label: "库存预警数", value: formatNumber(t.stock_warning_count), path: "/inventory" }
   ];
 });
 

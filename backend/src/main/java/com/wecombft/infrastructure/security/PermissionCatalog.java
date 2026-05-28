@@ -27,6 +27,10 @@ public class PermissionCatalog {
         return policies.get(roleCode);
     }
 
+    public List<RolePolicy> allPolicies() {
+        return List.copyOf(policies.values());
+    }
+
     public PermissionView merge(List<String> roleCodes) {
         if (roleCodes.isEmpty()) {
             return PermissionView.from(unassignedPolicy);
