@@ -1,5 +1,5 @@
 App({
   globalData: {
-    apiBaseUrl: "http://localhost:8080"
+    apiBaseUrl: "https://finhub.tax"
   }
 });

@@ -63,6 +63,26 @@ public class IamRepository {
         return (value == null || value.isBlank()) ? Optional.empty() : Optional.of(value);
     }
 
+    public UserRecord createUnassignedInternalUser(long userId, String wecomUserId, String displayName, String mobile) {
+        String userNo = wecomUserId == null || wecomUserId.isBlank()
+            ? "WECOM_" + userId
+            : wecomUserId;
+        String resolvedName = displayName == null || displayName.isBlank() ? userNo : displayName;
+        jdbcTemplate.update(
+            """
+            insert into sys_user (
+                id, user_no, user_type, display_name, mobile, wecom_user_id,
+                status, created_by, updated_by
+            ) values (?, ?, 'INTERNAL', ?, ?, ?, 'ACTIVE', 0, 0)
+            """,
+            userId,
+            userNo,
+            resolvedName,
+            mobile,
+            wecomUserId);
+        return new UserRecord(userId, userNo, resolvedName, "ACTIVE");
+    }
+
     public Optional<String> findUserNoById(long userId) {
         List<String> rows = jdbcTemplate.queryForList(
             """

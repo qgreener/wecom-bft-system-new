@@ -129,7 +129,7 @@ public class AppStudentApplicationService {
     @Transactional
     public PhoneAuthorizeResponse authorizePhone(String authorizationHeader, PhoneAuthorizeCommand command) {
         StudentSession current = requireStudent(authorizationHeader);
-        String phone = parseMockPhone(command.phoneCode());
+        String phone = resolvePhone(command.phoneCode());
         Optional<StudentSession> existingByPhone = findActiveByMobile(phone);
         if (existingByPhone.isEmpty() || existingByPhone.get().studentId() == current.studentId()) {
             bindPhone(current, phone);
@@ -296,6 +296,21 @@ public class AppStudentApplicationService {
             """,
             phone,
             student.userId());
+    }
+
+    private String resolvePhone(String phoneCode) {
+        if (phoneCode == null || phoneCode.isBlank()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "WX_PHONE_CODE_EMPTY", "phone_code 不能为空");
+        }
+        try {
+            String phone = wechatMiniappAuthAdapter.getPhoneNumber(phoneCode);
+            if (phone == null || !phone.matches("1[3-9]\\d{9}")) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "手机号格式错误");
+            }
+            return phone;
+        } catch (com.wecombft.infrastructure.integration.wechat.WechatMiniappAuthException e) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, e.errorCode(), e.getMessage());
+        }
     }
 
     private String parseMockPhone(String phoneCode) {

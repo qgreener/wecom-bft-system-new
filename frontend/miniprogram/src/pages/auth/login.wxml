@@ -1,19 +1,23 @@
 <view class="page">
   <view class="card">
-    <view class="title">微信登录 Mock</view>
-    <view class="subtle section">当前后端只接收 mock 登录码与 mock 手机号授权；登录态会持久化到本地存储。</view>
+    <view class="title">微信登录</view>
+    <view class="subtle section">点击下方按钮通过微信授权登录学员账号；交易前需授权手机号。</view>
     <view wx:if="{{session}}" class="line">
       <view class="h2">{{session.studentNo}}</view>
       <view class="subtle">手机号：{{mobileText}}</view>
     </view>
     <view wx:else class="subtle line">尚未登录</view>
-    <view class="btn" bindtap="login">微信登录 Mock</view>
+    <view class="btn" bindtap="login">微信登录</view>
   </view>
 
-  <view class="card">
-    <view class="h2 section">手机号授权 Mock</view>
-    <input class="input section" value="{{phone}}" type="number" maxlength="11" bindinput="onPhoneInput" placeholder="Mock 手机号" />
-    <view class="btn secondary" bindtap="authorizePhone">授权当前手机号</view>
+  <view wx:if="{{session}}" class="card">
+    <view class="h2 section">手机号授权</view>
+    <view class="subtle section">商家需在交易前获取您的手机号，仅用于学员档案关联。</view>
+    <button class="btn" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber">微信授权手机号</button>
+
+    <view class="subtle section" style="margin-top:16px;">演示兜底：手动输入手机号</view>
+    <input class="input section" value="{{phone}}" type="number" maxlength="11" bindinput="onPhoneInput" placeholder="13xxxxxxxxx" />
+    <view class="btn secondary" bindtap="authorizePhone">提交手动手机号</view>
   </view>
 
   <view wx:if="{{loading}}" class="loading">处理中</view>

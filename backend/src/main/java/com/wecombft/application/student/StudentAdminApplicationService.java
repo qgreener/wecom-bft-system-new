@@ -38,6 +38,7 @@ public class StudentAdminApplicationService {
         requireAdmin(principal);
         List<Object> args = new ArrayList<>();
         StringBuilder condition = new StringBuilder("s.deleted_flag = 0");
+        applyTeacherScope(principal, condition, args);
         if (keyword != null && !keyword.isBlank()) {
             condition.append(" and (s.student_no like ? or s.mobile like ? or s.nickname like ? or s.real_name like ?)");
             String like = "%" + keyword.trim() + "%";
@@ -95,6 +96,9 @@ public class StudentAdminApplicationService {
 
     public StudentAdminDetailResponse adminStudentDetail(AdminPrincipal principal, long studentId) {
         requireAdmin(principal);
+        if (isTeacherOnly(principal) && !teacherCanSeeStudent(principal.userId(), studentId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "无权查看该学员档案");
+        }
         boolean canSeeMobileFull = canSeeMobileFull(principal);
         boolean canSeeMobileTail = canSeeMobileTail(principal);
         return jdbcTemplate.query(
@@ -135,6 +139,38 @@ public class StudentAdminApplicationService {
         if (principal == null) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "缺少管理端登录态");
         }
+    }
+
+    private boolean isTeacherOnly(AdminPrincipal principal) {
+        List<String> roles = principal.roleCodes();
+        if (roles.contains("SUPER_ADMIN") || roles.contains("EDU_ADMIN") || roles.contains("OPS")
+            || roles.contains("SERVICE")) {
+            return false;
+        }
+        return roles.contains("TEACHER");
+    }
+
+    private void applyTeacherScope(AdminPrincipal principal, StringBuilder condition, List<Object> args) {
+        if (!isTeacherOnly(principal)) {
+            return;
+        }
+        // 讲师只看负责课程的已购学员（通过学习权益关联）
+        condition.append(
+            " and exists (select 1 from learning_entitlement le"
+            + " join course c on c.id = le.course_id"
+            + " where le.student_id = s.id and c.teacher_user_id = ?)");
+        args.add(principal.userId());
+    }
+
+    private boolean teacherCanSeeStudent(long teacherUserId, long studentId) {
+        Integer cnt = jdbcTemplate.queryForObject(
+            "select count(1) from learning_entitlement le"
+                + " join course c on c.id = le.course_id"
+                + " where le.student_id = ? and c.teacher_user_id = ?",
+            Integer.class,
+            studentId,
+            teacherUserId);
+        return cnt != null && cnt > 0;
     }
 
     private boolean canSeeMobileFull(AdminPrincipal principal) {

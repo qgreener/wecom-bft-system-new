@@ -1,10 +1,12 @@
 import { getAccessToken, saveLoginSession, updateSessionFromPhone } from "../stores/session";
 import type {
+  AppAddress,
   AppCourse,
   CourseDetail,
   Entitlement,
   InvoiceResponse,
   InvoiceTitle,
+  NotificationItem,
   OrderConfirmResponse,
   OrderCreateResponse,
   OrderDetail,
@@ -39,6 +41,18 @@ export async function authorizePhoneMock(): Promise<PhoneAuthorizeResponse> {
     accessToken: getAccessToken(),
     data: {
       phone_code: getPhoneAuthorizeCode()
+    }
+  });
+  updateSessionFromPhone(response);
+  return response;
+}
+
+export async function authorizePhoneWithCode(phoneCode: string): Promise<PhoneAuthorizeResponse> {
+  const response = await request<PhoneAuthorizeResponse>("/api/app/auth/phone-authorize", {
+    method: "POST",
+    accessToken: getAccessToken(),
+    data: {
+      phone_code: phoneCode
     }
   });
   updateSessionFromPhone(response);
@@ -249,6 +263,56 @@ export function applyInvoice(orderId: number, titleId: number, email: string): P
 
 export function fetchInvoices(): Promise<{ records: InvoiceResponse[] }> {
   return request("/api/app/invoices", {
+    accessToken: getAccessToken()
+  });
+}
+
+// 通知信息
+export function fetchNotifications(): Promise<NotificationItem[]> {
+  return request<NotificationItem[]>("/api/app/notifications", {
+    accessToken: getAccessToken()
+  });
+}
+
+export function markNotificationRead(notificationId: number): Promise<NotificationItem> {
+  return request<NotificationItem>(`/api/app/notifications/${notificationId}/read`, {
+    method: "POST",
+    accessToken: getAccessToken(),
+    idempotent: true,
+    idempotencyScope: "mp-notification-read"
+  });
+}
+
+// 收货地址
+export function fetchAddresses(): Promise<AppAddress[]> {
+  return request<AppAddress[]>("/api/app/addresses", {
+    accessToken: getAccessToken()
+  });
+}
+
+export function createAddress(payload: Partial<AppAddress>): Promise<AppAddress> {
+  return request<AppAddress>("/api/app/addresses", {
+    method: "POST",
+    accessToken: getAccessToken(),
+    idempotent: true,
+    idempotencyScope: "mp-address-create",
+    data: payload
+  });
+}
+
+export function updateAddress(addressId: number, payload: Partial<AppAddress>): Promise<AppAddress> {
+  return request<AppAddress>(`/api/app/addresses/${addressId}`, {
+    method: "PUT",
+    accessToken: getAccessToken(),
+    idempotent: true,
+    idempotencyScope: "mp-address-update",
+    data: payload
+  });
+}
+
+export function deleteAddress(addressId: number): Promise<void> {
+  return request<void>(`/api/app/addresses/${addressId}`, {
+    method: "DELETE",
     accessToken: getAccessToken()
   });
 }

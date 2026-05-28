@@ -24,4 +24,20 @@ public class MockWechatMiniappAuthAdapter implements WechatMiniappAuthAdapter {
         }
         return new WechatMiniappSession("mock_openid_" + identity, null, "mock_session_" + identity);
     }
+
+    @Override
+    public String getPhoneNumber(String phoneCode) {
+        if (phoneCode == null || phoneCode.isBlank()) {
+            throw new WechatMiniappAuthException("WX_PHONE_CODE_EMPTY", "phone_code 不能为空");
+        }
+        String value = phoneCode.trim();
+        if (value.startsWith(MOCK_PREFIX)) {
+            value = value.substring(MOCK_PREFIX.length()).trim();
+        }
+        if (!value.matches("1[3-9]\\d{9}")) {
+            throw new WechatMiniappAuthException("WX_PHONE_INVALID",
+                "Mock 模式手机号格式非法，期望 mock:13xxxxxxxxx 形式");
+        }
+        return value;
+    }
 }

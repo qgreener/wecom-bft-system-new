@@ -16,6 +16,7 @@ import com.wecombft.infrastructure.security.AdminSessionService;
 import com.wecombft.infrastructure.security.PermissionCatalog.DataScopePolicy;
 import com.wecombft.infrastructure.security.PermissionCatalog.FieldMaskPolicy;
 import com.wecombft.infrastructure.security.PermissionCatalog.MenuPolicy;
+import com.wecombft.shared.id.IdGenerator;
 import com.wecombft.shared.web.ApiException;
 
 import com.wecombft.interfaces.dto.iam.CurrentUserResponse;
@@ -30,15 +31,18 @@ public class AdminAuthApplicationService {
     private final AdminSessionService adminSessionService;
     private final WecomAuthAdapter wecomAuthAdapter;
     private final IamRepository iamRepository;
+    private final IdGenerator idGenerator;
 
     public AdminAuthApplicationService(
         AdminSessionService adminSessionService,
         WecomAuthAdapter wecomAuthAdapter,
-        IamRepository iamRepository
+        IamRepository iamRepository,
+        IdGenerator idGenerator
     ) {
         this.adminSessionService = adminSessionService;
         this.wecomAuthAdapter = wecomAuthAdapter;
         this.iamRepository = iamRepository;
+        this.idGenerator = idGenerator;
     }
 
     public TestLoginResponse testLogin(String userNo) {
@@ -59,8 +63,11 @@ public class AdminAuthApplicationService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, e.errorCode(), e.getMessage());
         }
         UserRecord user = iamRepository.findActiveUserByWecomUserId(info.wecomUserId())
-            .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "WECOM_USER_NOT_BOUND",
-                "企微账号未绑定系统用户：wecom_user_id=" + info.wecomUserId()));
+            .orElseGet(() -> iamRepository.createUnassignedInternalUser(
+                idGenerator.nextId(),
+                info.wecomUserId(),
+                info.displayName(),
+                info.mobile()));
         return testLogin(user.userNo());
     }
 
