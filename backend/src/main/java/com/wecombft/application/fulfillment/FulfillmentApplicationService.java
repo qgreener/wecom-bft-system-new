@@ -54,6 +54,16 @@ public class FulfillmentApplicationService {
     private final LogisticsAdapter logisticsAdapter;
     private final FulfillmentStateDomainService fulfillmentStateDomainService = new FulfillmentStateDomainService();
 
+    @org.springframework.beans.factory.annotation.Value("${integration.logistics-mode:mock}")
+    private String logisticsMode;
+
+    private static final java.util.concurrent.ScheduledExecutorService MOCK_LOGISTICS_EXECUTOR =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "mock-logistics-callback");
+            t.setDaemon(true);
+            return t;
+        });
+
     public FulfillmentApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
@@ -257,7 +267,42 @@ public class FulfillmentApplicationService {
             shipment.shipmentNo(),
             order.id(),
             "{\"tracking_no\":\"" + jsonSafe(trackingNo) + "\",\"stock_flow_count\":" + flowIds.size() + "}");
+        // mock 模式下，发货成功后约 5 秒模拟一次"已签收"轨迹回调，让学员看到完整链路
+        if ("mock".equalsIgnoreCase(logisticsMode) && trackingNo != null && !trackingNo.isBlank()) {
+            scheduleMockSignedCallback(shipment.shipmentNo(), trackingNo);
+        }
         return requireShipment(shipmentId).toActionResponse(flowIds);
+    }
+
+    /**
+     * Mock 物流：发货后延迟 5 秒投递一次"已签收"轨迹回调。
+     * 走和真实回调一样的 handleLogisticsCallback 路径，保证状态机/审计/单据链一致。
+     */
+    private void scheduleMockSignedCallback(String shipmentNo, String trackingNo) {
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    MOCK_LOGISTICS_EXECUTOR.schedule(() -> {
+                        try {
+                            String mockEventNo = "MOCK_LOGI_" + System.currentTimeMillis() + "_" + trackingNo;
+                            LogisticsTraceCommand command = new LogisticsTraceCommand(
+                                mockEventNo,
+                                shipmentNo,
+                                trackingNo,
+                                LocalDateTime.now(),
+                                "SIGNED",
+                                "已签收（自动模拟）",
+                                Boolean.TRUE,
+                                Map.of("scenario", "auto_mock_logistics_signed",
+                                       "mock_event_no", mockEventNo));
+                            handleLogisticsCallback(command);
+                        } catch (RuntimeException e) {
+                            // mock 回调失败不影响发货结果，留给人工/Mock 场景控制页补偿
+                        }
+                    }, 5, java.util.concurrent.TimeUnit.SECONDS);
+                }
+            });
     }
 
     @Transactional

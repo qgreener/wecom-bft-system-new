@@ -92,6 +92,9 @@ public class AfterSalesFinanceApplicationService {
     private final com.wecombft.infrastructure.persistence.iam.IamRepository iamRepository;
     private final com.wecombft.infrastructure.integration.mail.MailService mailService;
 
+    @org.springframework.beans.factory.annotation.Value("${integration.payment-mode:mock}")
+    private String paymentMode;
+
     public AfterSalesFinanceApplicationService(
         JdbcTemplate jdbcTemplate,
         IdGenerator idGenerator,
@@ -339,7 +342,41 @@ public class AfterSalesFinanceApplicationService {
             refund.orderId());
         auditLogService.writeSuccess(principal, "REFUND", "REFUND_APPROVE", "PAY_REFUND", refund.id(), refund.refundNo(), refund.orderId(), "{\"status\":\"" + nextStatus + "\",\"channel\":\"" + channel + "\"}");
         notifyAccountingOfRefundApproved(principal, refund, nextStatus, channel);
+        // Mock 模式下，原路退款审批通过后没有真实外部支付平台回调，自动模拟一次成功回调，
+        // 让退款单从 PROCESSING → REFUNDED，同时触发权益冻结/单据链回写
+        if ("mock".equalsIgnoreCase(paymentMode) && "PROCESSING".equals(nextStatus)) {
+            scheduleMockRefundCallback(refund.refundNo(), approvedAmount);
+        }
         return toRefundResponse(requireRefund(refundId));
+    }
+
+    /**
+     * Mock 模式专用：approveRefund 提交后异步回调一次"退款成功"。
+     * 走和外部回调一样的 handleWechatRefundCallback 路径，保证状态机/审计/单据链一致。
+     */
+    private void scheduleMockRefundCallback(String refundNo, long refundedAmountCent) {
+        // 用 TransactionSynchronization 等当前事务提交后再触发，避免读不到刚 update 的 PROCESSING 状态
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        String mockEventNo = "MOCK_REFUND_" + System.currentTimeMillis() + "_" + refundNo;
+                        RefundCallbackCommand command = new RefundCallbackCommand(
+                            mockEventNo,
+                            refundNo,
+                            "MOCK_EXT_" + mockEventNo,
+                            "SUCCESS",
+                            refundedAmountCent,
+                            LocalDateTime.now(),
+                            null,
+                            Map.of("scenario", "auto_mock_refund_after_approve", "mock_event_no", mockEventNo));
+                        handleWechatRefundCallback(command);
+                    } catch (RuntimeException e) {
+                        // mock 回调失败不影响主审批流，留给人工补偿/重试
+                    }
+                }
+            });
     }
 
     private void notifyAccountingOfRefundApproved(
