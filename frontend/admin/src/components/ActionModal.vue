@@ -24,6 +24,14 @@ watch(actionType, async (type) => {
     if (field.type === "remoteSelect" && field.remote) {
       void loadRemote(field);
     }
+    if (field.type === "itemTable" && field.columns) {
+      // itemTable 的每个 remoteSelect 列也要拉选项
+      for (const col of field.columns) {
+        if (col.type === "remoteSelect" && col.remote) {
+          void loadRemote(col);
+        }
+      }
+    }
   }
 });
 
@@ -102,6 +110,19 @@ function fieldsFor(type: string) {
   return ACTION_FIELD_DEFS[type] ?? [];
 }
 
+function tableRows(key: string): Array<Record<string, unknown>> {
+  const v = (actionForm.value as Record<string, unknown>)[key];
+  return Array.isArray(v) ? (v as Array<Record<string, unknown>>) : [];
+}
+
+function onTableCellInput(rowKey: string, index: number, colKey: string, value: unknown): void {
+  const rows = tableRows(rowKey).slice();
+  const row = { ...(rows[index] ?? {}) };
+  row[colKey] = value;
+  rows[index] = row;
+  (actionForm.value as Record<string, unknown>)[rowKey] = rows;
+}
+
 function onFileChange(key: string, event: Event): void {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
@@ -134,6 +155,48 @@ function onFileChange(key: string, event: Event): void {
               {{ option.label }}（#{{ option.value }}）
             </option>
           </select>
+          <div v-else-if="field.type === 'itemTable'" class="item-table">
+            <table>
+              <thead>
+                <tr>
+                  <th v-for="col in field.columns ?? []" :key="col.key">
+                    {{ col.label }}<strong v-if="col.required" class="req">*</strong>
+                  </th>
+                  <th class="ops">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, index) in tableRows(field.key)" :key="index">
+                  <td v-for="col in field.columns ?? []" :key="col.key">
+                    <select
+                      v-if="col.type === 'remoteSelect'"
+                      :value="row[col.key] ?? ''"
+                      @change="onTableCellInput(field.key, index, col.key, ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ remoteLoading[col.key] ? "加载中..." : "请选择" }}</option>
+                      <option v-for="o in remoteOptions[col.key] ?? []" :key="o.value" :value="o.value">
+                        {{ o.label }}
+                      </option>
+                    </select>
+                    <input
+                      v-else
+                      :type="col.type ?? 'text'"
+                      :value="row[col.key] ?? ''"
+                      :placeholder="col.placeholder"
+                      @input="onTableCellInput(field.key, index, col.key, ($event.target as HTMLInputElement).value)"
+                    />
+                  </td>
+                  <td class="ops">
+                    <button type="button" class="ghost row-del" @click="actionStore.removeItemRow(field.key, index)">删除</button>
+                  </td>
+                </tr>
+                <tr v-if="tableRows(field.key).length === 0">
+                  <td :colspan="(field.columns ?? []).length + 1" class="empty">暂无明细，点击下方"添加一行"</td>
+                </tr>
+              </tbody>
+            </table>
+            <button type="button" class="secondary add-row" @click="actionStore.addItemRow(field.key)">+ 添加一行</button>
+          </div>
           <textarea
             v-else-if="field.type === 'textarea' || field.type === 'json'"
             v-model="actionForm[field.key]"
@@ -207,4 +270,32 @@ function onFileChange(key: string, event: Event): void {
   border-radius: 6px;
   font-size: 13px;
 }
+.item-table {
+  display: block;
+  width: 100%;
+}
+.item-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.item-table th, .item-table td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 13px;
+}
+.item-table th { background: #f3f4f6; font-weight: 600; }
+.item-table th.ops, .item-table td.ops { width: 64px; text-align: center; }
+.item-table input, .item-table select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.item-table .row-del { padding: 2px 8px; font-size: 12px; }
+.item-table .empty { text-align: center; color: #9ca3af; padding: 12px; }
+.item-table .req { color: #dc2626; margin-left: 2px; }
+.add-row { width: auto; padding: 6px 14px; }
 </style>

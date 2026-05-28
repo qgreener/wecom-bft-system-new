@@ -3,13 +3,17 @@ import type { RouteKey } from "@/router/routes";
 export interface ActionFieldDef {
   key: string;
   label: string;
-  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file" | "remoteSelect";
+  type?: "text" | "number" | "textarea" | "select" | "datetime-local" | "date" | "month" | "checkbox" | "json" | "file" | "remoteSelect" | "itemTable";
   placeholder?: string;
   options?: { label: string; value: string }[];
   required?: boolean;
   accept?: string;
   /** 用于 remoteSelect：拉取选项的 API 路径；返回数据中按 valueKey/labelKey 取值 */
   remote?: { url: string; valueKey: string; labelKey: string };
+  /** 用于 itemTable：每行的列定义；提交时把所有行收集成 Array<Record> */
+  columns?: ActionFieldDef[];
+  /** 用于 itemTable：从某个上下文 record 字段（如 purchase 的 items）预填初始行 */
+  prefillFrom?: string;
 }
 
 export interface ActionBinding {
@@ -351,14 +355,26 @@ export const ACTION_FIELD_DEFS: Record<string, ActionFieldDef[]> = {
   purchaseCreate: [
     { key: "supplier_id", label: "供货商", type: "remoteSelect", required: true,
       remote: { url: "/api/admin/suppliers", valueKey: "supplier_id", labelKey: "supplier_name" } },
-    { key: "purchase_items_json", label: "商品明细", type: "json",
-      placeholder: "[{\"sku_id\":1,\"quantity\":10,\"unit_price_cent\":1000}]", required: true },
+    { key: "purchase_items", label: "商品明细", type: "itemTable", required: true,
+      columns: [
+        { key: "sku_id", label: "SKU", type: "remoteSelect", required: true,
+          remote: { url: "/api/admin/inventory/skus", valueKey: "sku_id", labelKey: "sku_name" } },
+        { key: "quantity", label: "数量", type: "number", required: true },
+        { key: "unit_price_cent", label: "单价(分)", type: "number", required: true }
+      ] },
     { key: "submit_reason", label: "采购原因", type: "textarea" },
     { key: "expected_arrival_date", label: "预计到货日期", type: "date" }
   ],
   purchaseReceive: [
     { key: "inbound_batch_no", label: "入库批次号", required: true },
-    { key: "received_items_json", label: "收货明细 JSON", type: "json", placeholder: "[{\"sku_id\":1,\"received_quantity\":10,\"remark\":\"\"}]", required: true }
+    { key: "received_items", label: "收货明细", type: "itemTable", required: true,
+      prefillFrom: "purchase_items",
+      columns: [
+        { key: "sku_id", label: "SKU", type: "remoteSelect", required: true,
+          remote: { url: "/api/admin/inventory/skus", valueKey: "sku_id", labelKey: "sku_name" } },
+        { key: "received_quantity", label: "实收数量", type: "number", required: true }
+      ] },
+    { key: "remark", label: "备注", type: "textarea" }
   ],
   purchaseInputInvoice: [
     { key: "invoice_no", label: "进项发票号", required: true },

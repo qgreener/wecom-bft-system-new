@@ -19,11 +19,23 @@ export const useActionStore = defineStore("action", () => {
   const actionError = ref("");
   const actionForm = reactive<Record<string, any>>({});
 
-  function defaultForm(type: string): Record<string, string | boolean | number> {
+  function defaultForm(type: string): Record<string, unknown> {
     const fields = ACTION_FIELD_DEFS[type] ?? [];
-    const form: Record<string, string | boolean | number> = {};
-    for (const f of fields) form[f.key] = f.type === "checkbox" ? false : "";
+    const form: Record<string, unknown> = {};
+    for (const f of fields) {
+      if (f.type === "checkbox") form[f.key] = false;
+      else if (f.type === "itemTable") form[f.key] = [] as Array<Record<string, unknown>>;
+      else form[f.key] = "";
+    }
     return form;
+  }
+
+  function newItemRow(field: { columns?: { key: string; type?: string }[] }): Record<string, unknown> {
+    const row: Record<string, unknown> = {};
+    for (const col of field.columns ?? []) {
+      row[col.key] = col.type === "checkbox" ? false : "";
+    }
+    return row;
   }
 
   function openModal(type: string, record: AnyRecord | null): void {
@@ -32,6 +44,35 @@ export const useActionStore = defineStore("action", () => {
     actionError.value = "";
     for (const key of Object.keys(actionForm)) delete actionForm[key];
     Object.assign(actionForm, defaultForm(type));
+    // itemTable 预填：若字段定义有 prefillFrom，从 record 该路径取数组初始化行
+    const fields = ACTION_FIELD_DEFS[type] ?? [];
+    for (const f of fields) {
+      if (f.type === "itemTable" && f.prefillFrom && record) {
+        const raw = record[f.prefillFrom];
+        if (Array.isArray(raw) && raw.length > 0) {
+          actionForm[f.key] = raw.map((item) => {
+            const row: Record<string, unknown> = {};
+            for (const col of f.columns ?? []) {
+              const value = (item as Record<string, unknown>)[col.key];
+              row[col.key] = value == null ? "" : String(value);
+            }
+            return row;
+          });
+        }
+      }
+    }
+  }
+
+  function addItemRow(key: string): void {
+    const field = (ACTION_FIELD_DEFS[actionType.value] ?? []).find((f) => f.key === key);
+    if (!field) return;
+    const rows = (actionForm[key] as Array<Record<string, unknown>>) ?? [];
+    actionForm[key] = [...rows, newItemRow(field)];
+  }
+
+  function removeItemRow(key: string, index: number): void {
+    const rows = (actionForm[key] as Array<Record<string, unknown>>) ?? [];
+    actionForm[key] = rows.filter((_, i) => i !== index);
   }
 
   function closeModal(): void {
@@ -67,6 +108,7 @@ export const useActionStore = defineStore("action", () => {
       key.endsWith("_count") ||
       key.endsWith("_id") ||
       key === "quantity" ||
+      key === "received_quantity" ||
       key === "sort_no" ||
       key === "safety_stock" ||
       key === "total_count" ||
@@ -79,6 +121,35 @@ export const useActionStore = defineStore("action", () => {
     const payload: Record<string, unknown> = {};
     for (const [key, rawValue] of Object.entries(actionForm)) {
       const field = fields.get(key);
+
+      // itemTable：把每行的列收集为对象数组，数字列转 number
+      if (field?.type === "itemTable") {
+        const rows = (rawValue as Array<Record<string, unknown>>) ?? [];
+        const cleaned = rows
+          .map((row) => {
+            const item: Record<string, unknown> = {};
+            for (const col of field.columns ?? []) {
+              const colVal = row[col.key];
+              if (colVal === null || colVal === undefined) continue;
+              const trimmed = typeof colVal === "string" ? colVal.trim() : colVal;
+              if (trimmed === "") continue;
+              if (col.type === "number" || shouldNumber(col.key)) {
+                item[col.key] = Number(trimmed) || 0;
+              } else if (col.type === "checkbox") {
+                item[col.key] = Boolean(trimmed);
+              } else {
+                item[col.key] = trimmed;
+              }
+            }
+            return item;
+          })
+          .filter((item) => Object.keys(item).length > 0);
+        if (cleaned.length > 0) {
+          payload[key] = cleaned;
+        }
+        continue;
+      }
+
       if (typeof rawValue === "string" && rawValue.trim() === "") {
         continue;
       }
@@ -176,6 +247,8 @@ export const useActionStore = defineStore("action", () => {
     actionError,
     actionForm,
     openModal,
+    addItemRow,
+    removeItemRow,
     closeModal,
     submit,
     getActionId
