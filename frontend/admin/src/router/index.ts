@@ -77,7 +77,16 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/",
     component: () => import("@/layouts/AdminShell.vue"),
-    children: businessRoutes
+    children: [
+      ...businessRoutes,
+      {
+        path: "courses/:courseId/edit",
+        name: "course-edit",
+        meta: { routeKey: "courses", title: "课程编辑", group: "course", requiresAuth: true },
+        component: () => import("@/views/course/CourseEditView.vue"),
+        props: true
+      }
+    ]
   },
   {
     path: "/:pathMatch(.*)*",
