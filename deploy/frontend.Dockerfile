@@ -10,19 +10,28 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/shared/package.json ./frontend/shared/
 COPY frontend/admin/package.json ./frontend/admin/
+COPY frontend/h5/lead/package.json ./frontend/h5/lead/
+COPY frontend/h5/supplier/package.json ./frontend/h5/supplier/
+COPY frontend/h5/wecom-sidebar/package.json ./frontend/h5/wecom-sidebar/
 RUN pnpm install --frozen-lockfile --config.dangerouslyAllowAllBuilds=true
 
 # 复制实际源码
 COPY frontend/shared ./frontend/shared
 COPY frontend/admin ./frontend/admin
+COPY frontend/h5 ./frontend/h5
 
-# 构建 admin（产物在 frontend/admin/dist，vite base=/admin/）
-RUN pnpm --filter @wecom-bft/admin build
+# 构建 admin + 三个 H5
+RUN pnpm --filter @wecom-bft/admin build \
+    && pnpm --filter @wecom-bft/lead-h5 build \
+    && pnpm --filter @wecom-bft/supplier-h5 build \
+    && pnpm --filter @wecom-bft/wecom-sidebar-h5 build
 
-# nginx 阶段：把构建产物拷到 /usr/share/nginx/html/admin
+# nginx 阶段：把构建产物拷到 /usr/share/nginx/html/
 FROM nginx:1.27-alpine
 COPY --from=build /workspace/frontend/admin/dist /usr/share/nginx/html/admin
-# Phase B 新增 H5 后再追加 COPY 行 (--from=build /workspace/frontend/wecom-sidebar/dist /.../wecom-sidebar 等)
+COPY --from=build /workspace/frontend/h5/lead/dist /usr/share/nginx/html/h5/lead
+COPY --from=build /workspace/frontend/h5/supplier/dist /usr/share/nginx/html/h5/supplier
+COPY --from=build /workspace/frontend/h5/wecom-sidebar/dist /usr/share/nginx/html/h5/wecom-sidebar
 
 # 默认 nginx 配置由 docker-compose volume mount 注入
 EXPOSE 80 443
